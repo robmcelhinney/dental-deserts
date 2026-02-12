@@ -101,12 +101,29 @@ Or download from: https://geoportal.statistics.gov.uk/datasets/ons::lower-layer-
 
 This writes `data/raw/lsoa_boundaries.geojson`, which `scripts/build_data.py` will use when area codes match.
 
+## England-only Coverage
+
+Current overlay/benchmark coverage is England-only by design in this repo build.
+
+Why:
+
+- The current processed geometry/metric pipeline is keyed to England MSOA conventions (`MSOA::E...`) and England-focused denominator joins.
+- Cross-nation comparability is non-trivial: data definitions, update cadence, and publication structures differ across England, Wales, Scotland, and Northern Ireland.
+- To avoid misleading comparisons, unsupported areas are shown with clear warnings instead of mixed-quality metrics.
+
+Planned expansion path:
+
+- Add nation-specific boundary + denominator + deprivation ingestion for Wales, Scotland, and Northern Ireland.
+- Normalize to a common area schema with explicit provenance/version metadata per nation.
+- Ship side-by-side QA checks before enabling UK-wide overlay comparisons in production.
+
 ## Limitations and Caveats
 
 - Availability fields are reported values and may be stale.
 - "Accepting NHS patients" is not equivalent to short waits.
 - This map is an access exploration tool, not a quality ranking.
-- Current repository uses deterministic seed data for scaffold/dev; replace source fetchers with official datasets before public release.
+- Live NHS clinic data is used when `NHS_API_SUBSCRIPTION_KEY` is available.
+- Seed data remains as a fallback path, and some non-NHS inputs may still be seed-backed depending on pipeline configuration.
 
 ## License
 

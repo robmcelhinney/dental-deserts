@@ -62,6 +62,9 @@ const modeSelect = document.getElementById("mode")
 const searchModeRadiusButton = document.getElementById("search-mode-radius")
 const searchModeViewportButton = document.getElementById("search-mode-viewport")
 const resetViewButton = document.getElementById("reset-view")
+const useLocationButton = document.getElementById("use-location")
+const copyLinkButton = document.getElementById("copy-link")
+const copySummaryButton = document.getElementById("copy-summary")
 const postcodeControlsEl = document.getElementById("postcode-controls")
 const radiusControlsEl = document.getElementById("radius-controls")
 const viewportHintEl = document.getElementById("viewport-hint")
@@ -72,13 +75,17 @@ const areaColoringSelect = document.getElementById("area-coloring")
 const areaColoringControlsEl = document.getElementById("area-coloring-controls")
 const coverageBannerEl = document.getElementById("coverage-banner")
 const statusEl = document.getElementById("status")
+const shareStatusEl = document.getElementById("share-status")
 const desertBannerEl = document.getElementById("desert-banner")
+const insightCardEl = document.getElementById("insight-card")
 const compareCardEl = document.getElementById("compare-card")
 const dataSnapshotEl = document.getElementById("data-snapshot")
 const resultsTitleEl = document.getElementById("results-title")
 const resultsEl = document.getElementById("results")
 const resultsEmptyEl = document.getElementById("results-empty")
 const loadMoreButton = document.getElementById("load-more")
+const overlayExplainerEl = document.getElementById("overlay-explainer")
+const viewportZoomOverlayEl = document.getElementById("viewport-zoom-overlay")
 
 const areaMetricConfig = {
     pressure: {
@@ -138,6 +145,9 @@ const AREA_COLOR_SCHEMES = {
     ],
     off: ["#dfe3e8"],
 }
+const FEEDBACK_BASE_URL =
+    "https://github.com/robmcelhinney/dental-deserts/issues/new"
+const FEEDBACK_TEMPLATE = "report-incorrect-info.md"
 
 let areasGeojson = null
 let areaMetrics = {}
@@ -150,6 +160,7 @@ let areaDataLoadPromise = null
 let areaFeatureIndex = []
 let areaColorScheme = "contrast"
 let dataSnapshotLabel = "unknown"
+let startupQuery = null
 
 const ENGLAND_WALES_BOUNDS = {
     minLat: 49.8,
@@ -314,6 +325,66 @@ function updateResultsTitle() {
             : "Nearest Practices"
 }
 
+function modeToUrlValue(value) {
+    if (value === "adult") {
+        return "adults"
+    }
+    if (value === "children") {
+        return "children"
+    }
+    return "all"
+}
+
+function modeFromUrlValue(value) {
+    if (value === "adults" || value === "adult") {
+        return "adult"
+    }
+    if (value === "children" || value === "child") {
+        return "children"
+    }
+    return "all"
+}
+
+function urlValueForOverlay() {
+    if (!areaOverlayCheckbox.checked) {
+        return "off"
+    }
+    return areaMetricSelect.value
+}
+
+function buildShareUrl() {
+    const params = new URLSearchParams()
+    const query = normalizeQuery(postcodeInput.value)
+    if (query) {
+        params.set("q", query)
+    }
+    params.set("mode", modeToUrlValue(modeSelect.value))
+    params.set("radius", String(Number(radiusSelect.value)))
+    params.set("overlay", urlValueForOverlay())
+    params.set("search", searchMode)
+    const center = map.getCenter()
+    params.set("lat", center.lat.toFixed(5))
+    params.set("lon", center.lng.toFixed(5))
+    params.set("z", String(map.getZoom()))
+    return `${window.location.pathname}?${params.toString()}`
+}
+
+function updateUrlState() {
+    const next = buildShareUrl()
+    window.history.replaceState({}, "", next)
+}
+
+function showShareStatus(message) {
+    if (!shareStatusEl) {
+        return
+    }
+    shareStatusEl.textContent = message
+    shareStatusEl.classList.remove("is-empty")
+    window.setTimeout(() => {
+        shareStatusEl.classList.add("is-empty")
+    }, 2500)
+}
+
 function saveUiPreferences() {
     localStorage.setItem(PREFERENCE_KEYS.mode, searchMode)
     localStorage.setItem(PREFERENCE_KEYS.metric, areaMetricSelect.value)
@@ -392,6 +463,153 @@ async function loadSnapshotDate() {
     }
 }
 
+function nearestDistanceFor(type, lat, lon) {
+    const matches = practices
+        .filter((p) => p[type] === "yes")
+        .map((p) => haversineKm(lat, lon, p.lat, p.lon))
+        .filter((v) => Number.isFinite(v))
+        .sort((a, b) => a - b)
+    return matches.length ? matches[0] : null
+}
+
+function updateInsightCard() {
+    if (!insightCardEl) {
+        return
+    }
+    if (!lastSearchPoint) {
+        insightCardEl.classList.add("is-empty")
+        insightCardEl.textContent = ""
+        return
+    }
+    const adultsNearest = nearestDistanceFor(
+        "accepting_adults",
+        lastSearchPoint.lat,
+        lastSearchPoint.lon,
+    )
+    const childrenNearest = nearestDistanceFor(
+        "accepting_children",
+        lastSearchPoint.lat,
+        lastSearchPoint.lon,
+    )
+    const adultsText =
+        adultsNearest == null
+            ? "No accepting practice found"
+            : `${adultsNearest.toFixed(1)} km`
+    const childrenText =
+        childrenNearest == null
+            ? "No accepting practice found"
+            : `${childrenNearest.toFixed(1)} km`
+
+    insightCardEl.innerHTML =
+        `<div class="insight-title">Distance</div>` +
+        `<div class="insight-row"><span>Closest practice reporting NHS adult availability</span><strong>${adultsText}</strong></div>` +
+        `<div class="insight-row"><span>Closest practice reporting NHS children availability</span><strong>${childrenText}</strong></div>`
+    insightCardEl.classList.remove("is-empty")
+}
+
+function buildSummaryText() {
+    const radiusKm = Number(radiusSelect.value)
+    if (!lastSearchPoint) {
+        return "No search location selected yet."
+    }
+    const allInRadius = practices.filter((p) => {
+        const d = haversineKm(
+            lastSearchPoint.lat,
+            lastSearchPoint.lon,
+            p.lat,
+            p.lon,
+        )
+        return d <= radiusKm
+    })
+    const adultsYes = allInRadius.filter(
+        (p) => p.accepting_adults === "yes",
+    ).length
+    const childrenYes = allInRadius.filter(
+        (p) => p.accepting_children === "yes",
+    ).length
+    const adultsNearest = nearestDistanceFor(
+        "accepting_adults",
+        lastSearchPoint.lat,
+        lastSearchPoint.lon,
+    )
+    const childrenNearest = nearestDistanceFor(
+        "accepting_children",
+        lastSearchPoint.lat,
+        lastSearchPoint.lon,
+    )
+    const adultsNearestText =
+        adultsNearest == null ? "none found" : `${adultsNearest.toFixed(1)} km`
+    const childrenNearestText =
+        childrenNearest == null
+            ? "none found"
+            : `${childrenNearest.toFixed(1)} km`
+
+    return `Within ${radiusKm.toFixed(1)}km: ${allInRadius.length} practices, ${adultsYes} report accepting NHS adults, ${childrenYes} report accepting NHS children. Closest accepting adults: ${adultsNearestText}. Closest accepting children: ${childrenNearestText}.`
+}
+
+function feedbackIssueUrl(item) {
+    const query = normalizeQuery(postcodeInput.value)
+    const title = `Practice data check: ${item.practice_name}`
+    const body =
+        `Practice: ${item.practice_name}\n` +
+        `Postcode: ${item.postcode}\n` +
+        `Address search/postcode used: ${query || "not provided"}\n` +
+        `Observed issue: \n` +
+        `Expected/correct info (if known): \n`
+    const params = new URLSearchParams({
+        template: FEEDBACK_TEMPLATE,
+        title,
+        body,
+    })
+    return `${FEEDBACK_BASE_URL}?${params.toString()}`
+}
+
+function parseStartupQuery() {
+    const params = new URLSearchParams(window.location.search)
+    const rawMode = (params.get("mode") || "").trim().toLowerCase()
+    if (rawMode) {
+        modeSelect.value = modeFromUrlValue(rawMode)
+    }
+    const rawRadius = Number(params.get("radius"))
+    if (
+        Number.isFinite(rawRadius) &&
+        rawRadius >= Number(radiusSelect.min) &&
+        rawRadius <= Number(radiusSelect.max)
+    ) {
+        radiusSelect.value = String(rawRadius)
+    }
+    const overlay = (params.get("overlay") || "").trim().toLowerCase()
+    if (overlay === "off") {
+        areaOverlayCheckbox.checked = false
+    } else if (areaMetricConfig[overlay]) {
+        areaOverlayCheckbox.checked = true
+        areaMetricSelect.value = overlay
+    }
+    const search = (params.get("search") || "").trim().toLowerCase()
+    if (search === "radius" || search === "viewport") {
+        searchMode = search
+    }
+    const lat = Number(params.get("lat"))
+    const lon = Number(params.get("lon"))
+    const z = Number(params.get("z"))
+    if (Number.isFinite(lat) && Number.isFinite(lon)) {
+        map.setView([lat, lon], Number.isFinite(z) ? z : map.getZoom())
+    }
+    const q = params.get("q")
+    if (q) {
+        postcodeInput.value = q
+        startupQuery = q
+    }
+}
+
+function updateViewportZoomOverlay() {
+    if (!viewportZoomOverlayEl) {
+        return
+    }
+    const show = searchMode === "viewport" && map.getZoom() < VIEWPORT_MIN_ZOOM
+    viewportZoomOverlayEl.classList.toggle("is-empty", !show)
+}
+
 function clearPracticeMarkers() {
     if (markersLayer) {
         markersLayer.clearLayers()
@@ -438,6 +656,12 @@ function buildRankedResults(lat, lon) {
             if (mode === "children") {
                 return p.accepting_children === "yes"
             }
+            if (mode === "none") {
+                return (
+                    p.accepting_adults === "no" &&
+                    p.accepting_children === "no"
+                )
+            }
             return true
         })
         .sort((a, b) => a.distance_km - b.distance_km)
@@ -459,6 +683,12 @@ function buildViewportResults() {
             }
             if (mode === "children") {
                 return p.accepting_children === "yes"
+            }
+            if (mode === "none") {
+                return (
+                    p.accepting_adults === "no" &&
+                    p.accepting_children === "no"
+                )
             }
             return true
         })
@@ -490,9 +720,16 @@ function renderResults() {
         const meta = document.createElement("div")
         meta.className = "result-meta"
         meta.textContent = `Adults: ${availabilityLabel(item.accepting_adults)} | Children: ${availabilityLabel(item.accepting_children)}`
+        const feedback = document.createElement("a")
+        feedback.href = feedbackIssueUrl(item)
+        feedback.target = "_blank"
+        feedback.rel = "noopener noreferrer"
+        feedback.textContent = "Report incorrect info"
+        feedback.className = "result-feedback-link"
 
         li.appendChild(row)
         li.appendChild(meta)
+        li.appendChild(feedback)
         li.addEventListener("click", () => {
             setActivePractice(item.practice_id)
             const marker = markerByPracticeId.get(item.practice_id)
@@ -533,6 +770,7 @@ function renderMarkers(sorted) {
         const adultStatus = item.accepting_adults || "unknown"
         const childrenStatus = item.accepting_children || "unknown"
         const mapsUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(item.address + " " + item.postcode)}`
+        const feedbackUrl = feedbackIssueUrl(item)
         marker.bindPopup(
             `<div class="clinic-popup">` +
                 `<div class="clinic-popup__title">${item.practice_name}</div>` +
@@ -546,7 +784,11 @@ function renderMarkers(sorted) {
                 `<span class="clinic-popup__status-label">NHS children</span>` +
                 `<span class="clinic-popup__pill ${availabilityClass(childrenStatus)}">${availabilityLabel(childrenStatus)}</span>` +
                 `</div>` +
+                `<div class=".clinic-popup__link-row">` +
                 `<a class="clinic-popup__link" target="_blank" rel="noopener noreferrer" href="${mapsUrl}">Open in Google Maps</a>` +
+                `</div>` +
+                `<div class=".clinic-popup__link-row">` +
+                `<a class="clinic-popup__link" target="_blank" rel="noopener noreferrer" href="${feedbackUrl}">Report incorrect info</a>` +
                 `</div>`,
             { className: "clinic-popup-shell", maxWidth: 340 },
         )
@@ -1488,6 +1730,12 @@ function renderSelectedAreaOutline(
 }
 
 function toggleAreaLayer() {
+    if (overlayExplainerEl) {
+        overlayExplainerEl.classList.toggle(
+            "is-empty",
+            !areaOverlayCheckbox.checked,
+        )
+    }
     if (areaColoringControlsEl) {
         areaColoringControlsEl.classList.toggle(
             "is-empty",
@@ -1508,6 +1756,7 @@ function toggleAreaLayer() {
         map.removeControl(areaInfoControl)
         map.removeControl(legendControl)
     }
+    updateCoverageBanner()
 }
 
 function isInEnglandWalesApprox(lat, lon) {
@@ -1653,6 +1902,7 @@ async function geocodeAddress(query) {
 }
 
 function updateStatusWithResultCount() {
+    updateViewportZoomOverlay()
     if (searchMode === "viewport" && map.getZoom() < VIEWPORT_MIN_ZOOM) {
         statusEl.textContent = `Viewport mode. Zoom in to at least ${VIEWPORT_MIN_ZOOM} to show clinics.`
         statusEl.classList.remove("is-empty")
@@ -1691,6 +1941,8 @@ function recomputeAndRenderResults() {
             updateStatusWithResultCount()
             updateCompareCard(lastSearchPoint.lat, lastSearchPoint.lon)
             updateRadiusCircle()
+            updateInsightCard()
+            updateUrlState()
             return
         }
         rankedResults = buildViewportResults()
@@ -1711,6 +1963,8 @@ function recomputeAndRenderResults() {
     updateStatusWithResultCount()
     updateCompareCard(lastSearchPoint.lat, lastSearchPoint.lon)
     updateRadiusCircle()
+    updateInsightCard()
+    updateUrlState()
 }
 
 function runSearchFromPoint(lat, lon, contextLabel, keepCurrentZoom = false) {
@@ -1741,6 +1995,8 @@ function runSearchFromPoint(lat, lon, contextLabel, keepCurrentZoom = false) {
     updateStatusWithResultCount()
     updateCompareCard(lat, lon)
     updateRadiusCircle()
+    updateInsightCard()
+    updateUrlState()
 }
 
 function setSearchMode(nextMode) {
@@ -1767,6 +2023,8 @@ function setSearchMode(nextMode) {
         recomputeAndRenderResults()
     }
     updateRadiusCircle()
+    updateViewportZoomOverlay()
+    updateUrlState()
     saveUiPreferences()
 }
 
@@ -1788,6 +2046,8 @@ function resetView() {
     if (areaOverlayCheckbox.checked && areaDataLoaded) {
         renderAreaLayer()
     }
+    updateViewportZoomOverlay()
+    updateUrlState()
 }
 
 async function runSearch() {
@@ -1798,6 +2058,7 @@ async function runSearch() {
     const query = normalizeQuery(raw)
     if (!query) {
         statusEl.textContent = "Enter a postcode or address."
+        updateInsightCard()
         return
     }
 
@@ -1849,7 +2110,66 @@ async function runSearch() {
         clearSelectedAreaOutline()
         forcedCompareAreaCode = null
         forcedOutlineLsoaCode = null
+        updateInsightCard()
     }
+}
+
+function copyTextToClipboard(text) {
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+        return navigator.clipboard.writeText(text)
+    }
+    const el = document.createElement("textarea")
+    el.value = text
+    document.body.appendChild(el)
+    el.select()
+    document.execCommand("copy")
+    document.body.removeChild(el)
+    return Promise.resolve()
+}
+
+function copyShareLink() {
+    const absolute = new URL(buildShareUrl(), window.location.origin).toString()
+    copyTextToClipboard(absolute)
+        .then(() => showShareStatus("Shareable link copied."))
+        .catch(() => showShareStatus("Could not copy link."))
+}
+
+function copySummary() {
+    copyTextToClipboard(buildSummaryText())
+        .then(() => showShareStatus("Summary copied."))
+        .catch(() => showShareStatus("Could not copy summary."))
+}
+
+function useCurrentLocation() {
+    if (!navigator.geolocation) {
+        showShareStatus("Geolocation is not supported in this browser.")
+        return
+    }
+    showShareStatus("Fetching your location...")
+    navigator.geolocation.getCurrentPosition(
+        (position) => {
+            const lat = Number(position.coords.latitude)
+            const lon = Number(position.coords.longitude)
+            if (!Number.isFinite(lat) || !Number.isFinite(lon)) {
+                showShareStatus("Location unavailable.")
+                return
+            }
+            if (searchMode === "radius") {
+                runSearchFromPoint(lat, lon, "My location.")
+            } else {
+                map.setView(
+                    [lat, lon],
+                    Math.max(map.getZoom(), VIEWPORT_MIN_ZOOM),
+                )
+                recomputeAndRenderResults()
+            }
+            showShareStatus("Using your current location.")
+        },
+        () => {
+            showShareStatus("Could not access your location.")
+        },
+        { enableHighAccuracy: true, timeout: 12000 },
+    )
 }
 
 searchButton.addEventListener("click", runSearch)
@@ -1866,10 +2186,12 @@ radiusSelect.addEventListener("input", () => {
     updateRadiusDisplay()
     recomputeAndRenderResults()
     saveUiPreferences()
+    updateUrlState()
 })
 modeSelect.addEventListener("change", () => {
     recomputeAndRenderResults()
     saveUiPreferences()
+    updateUrlState()
 })
 searchModeRadiusButton.addEventListener("click", () => setSearchMode("radius"))
 searchModeViewportButton.addEventListener("click", () => {
@@ -1879,6 +2201,15 @@ searchModeViewportButton.addEventListener("click", () => {
 })
 if (resetViewButton) {
     resetViewButton.addEventListener("click", resetView)
+}
+if (useLocationButton) {
+    useLocationButton.addEventListener("click", useCurrentLocation)
+}
+if (copyLinkButton) {
+    copyLinkButton.addEventListener("click", copyShareLink)
+}
+if (copySummaryButton) {
+    copySummaryButton.addEventListener("click", copySummary)
 }
 areaOverlayCheckbox.addEventListener("change", async () => {
     if (areaColoringControlsEl) {
@@ -1912,6 +2243,7 @@ areaOverlayCheckbox.addEventListener("change", async () => {
     }
     saveUiPreferences()
     toggleAreaLayer()
+    updateUrlState()
 })
 areaMetricSelect.addEventListener("change", () => {
     renderAreaLayer()
@@ -1919,6 +2251,7 @@ areaMetricSelect.addEventListener("change", () => {
         updateCompareCard(lastSearchPoint.lat, lastSearchPoint.lon)
     }
     saveUiPreferences()
+    updateUrlState()
 })
 if (areaColoringSelect) {
     areaColoringSelect.addEventListener("change", () => {
@@ -1935,9 +2268,12 @@ map.on("moveend", () => {
     if (areaOverlayCheckbox.checked && areaDataLoaded) {
         renderAreaLayer()
     }
+    updateViewportZoomOverlay()
+    updateUrlState()
 })
 ;(async () => {
     restoreUiPreferences()
+    parseStartupQuery()
     await Promise.all([loadPractices(), loadSnapshotDate()])
     loadMoreButton.style.display = "none"
     statusEl.classList.add("is-empty")
@@ -1952,6 +2288,7 @@ map.on("moveend", () => {
     updateRadiusDisplay()
     updateResultsTitle()
     updateCoverageBanner()
+    updateViewportZoomOverlay()
     if (areaOverlayCheckbox.checked) {
         areaOverlayCheckbox.dispatchEvent(new Event("change"))
     }
@@ -1959,4 +2296,10 @@ map.on("moveend", () => {
     if (last) {
         postcodeInput.value = last
     }
+    if (startupQuery && searchMode === "radius") {
+        await runSearch()
+    } else if (searchMode === "viewport") {
+        recomputeAndRenderResults()
+    }
+    updateUrlState()
 })()

@@ -4,9 +4,23 @@
         <meta charset="UTF-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
         <title>NHS Dental Desert</title>
-        <link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png" />
-        <link rel="icon" type="image/png" sizes="32x32" href="favicon-32x32.png" />
-        <link rel="icon" type="image/png" sizes="16x16" href="favicon-16x16.png" />
+        <link
+            rel="apple-touch-icon"
+            sizes="180x180"
+            href="apple-touch-icon.png"
+        />
+        <link
+            rel="icon"
+            type="image/png"
+            sizes="32x32"
+            href="favicon-32x32.png"
+        />
+        <link
+            rel="icon"
+            type="image/png"
+            sizes="16x16"
+            href="favicon-16x16.png"
+        />
         <link rel="icon" href="favicon.ico" />
         <link rel="manifest" href="site.webmanifest" />
         <link rel="preconnect" href="https://fonts.googleapis.com" />
@@ -101,9 +115,32 @@
                         <option value="all" selected>All practices</option>
                         <option value="adult">Accepting NHS adults</option>
                         <option value="children">Accepting NHS children</option>
+                        <option value="none">
+                            Not accepting any new NHS patients
+                        </option>
                     </select>
                     <button id="search">Search</button>
+                    <button id="use-location" type="button">
+                        Use my location
+                    </button>
+                    <details class="share-menu">
+                        <summary>Share</summary>
+                        <div class="share-actions">
+                            <button id="copy-link" type="button">
+                                Copy link
+                            </button>
+                            <button id="copy-summary" type="button">
+                                Copy summary
+                            </button>
+                        </div>
+                    </details>
+                    <p
+                        id="share-status"
+                        class="note is-empty"
+                        role="status"
+                    ></p>
                     <p id="status" role="status"></p>
+                    <div id="insight-card" class="insight-card is-empty"></div>
                     <p id="desert-banner" role="status"></p>
                     <div id="compare-card" aria-live="polite"></div>
                 </div>
@@ -127,8 +164,21 @@
                         <input id="area-overlay" type="checkbox" checked />
                         Show area overlay (MSOA, partial coverage)
                     </label>
-                    <p id="coverage-banner" class="note coverage-warning is-empty" role="status">
-                        Warning: Area overlay coverage is currently England only.
+                    <p
+                        id="coverage-banner"
+                        class="note coverage-warning is-empty"
+                        role="status"
+                    >
+                        Warning: Area overlay coverage is currently England
+                        only.
+                    </p>
+                    <p class="note">
+                        Coverage limitation:
+                        <a
+                            href="https://github.com/robmcelhinney/dental-deserts#england-only-coverage"
+                        >
+                            Why England-only right now?
+                        </a>
                     </p>
                     <div id="area-coloring-controls" class="is-empty">
                         <label for="area-coloring">Coloring</label>
@@ -139,10 +189,44 @@
                             <option value="off">Off</option>
                         </select>
                     </div>
+                    <div
+                        id="overlay-explainer"
+                        class="overlay-explainer is-empty"
+                    >
+                        <strong>Overlay reading guide</strong>
+                        <p>
+                            Choropleth colors are area-level context, not
+                            appointment availability at a clinic.
+                        </p>
+                    </div>
+                    <details class="methodology">
+                        <summary>Methodology and interpretation</summary>
+                        <div class="methodology-body">
+                            <p>
+                                “Accepting NHS adults/children” is self-reported
+                                status from source feeds and can be stale.
+                            </p>
+                            <p>
+                                It does not guarantee immediate appointments,
+                                wait times, or capacity.
+                            </p>
+                            <p>
+                                Access pressure = practices per 10,000 residents
+                                in an MSOA.
+                            </p>
+                            <p>
+                                Dental desert risk is a composite of low
+                                practice density, low adult-accepting density,
+                                and deprivation.
+                            </p>
+                        </div>
+                    </details>
                 </div>
 
                 <div class="control-group results-group">
-                    <p id="results-title" class="group-title">Nearest Practices</p>
+                    <p id="results-title" class="group-title">
+                        Nearest Practices
+                    </p>
                     <p id="results-empty" class="note">
                         Search an address or postcode to list nearby practices.
                     </p>
@@ -161,12 +245,33 @@
                     </ol>
                     <p class="note">
                         Sources:
-                        <a href="https://github.com/robmcelhinney/dental-deserts/blob/main/docs/sources.md">data provenance</a>
+                        <a
+                            href="https://github.com/robmcelhinney/dental-deserts/blob/main/docs/sources.md"
+                            >data provenance</a
+                        >
                     </p>
-                    <p id="data-snapshot" class="note">Data snapshot: unknown</p>
+                    <p class="note">
+                        <a
+                            href="https://github.com/robmcelhinney/dental-deserts/issues/new?template=report-incorrect-info.md"
+                        >
+                            Report incorrect info
+                        </a>
+                    </p>
+                    <p id="data-snapshot" class="note">
+                        Data snapshot: unknown
+                    </p>
                 </div>
             </section>
-            <section id="map" aria-label="Map"></section>
+            <div class="map-shell">
+                <section id="map" aria-label="Map"></section>
+                <div
+                    id="viewport-zoom-overlay"
+                    class="viewport-zoom-overlay is-empty"
+                >
+                    Zoom in to at least level 9 to see practices in viewport
+                    mode.
+                </div>
+            </div>
         </main>
 
         <script
