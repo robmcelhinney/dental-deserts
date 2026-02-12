@@ -46,8 +46,7 @@ This repo includes a GitHub Actions workflow at
 The deploy workflow:
 
 - Runs `make build-data`.
-- Publishes `frontend/` and `data/processed/` to Pages.
-- Creates a root redirect from `/` to `/frontend/`.
+- Publishes `frontend/` at the site root (`/`) and includes `data/processed/`.
 
 ## Use Live NHS Data
 

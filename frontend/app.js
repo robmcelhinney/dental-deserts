@@ -1,5 +1,5 @@
-const DEFAULT_MAP_CENTER = [54.5, -2.5]
-const DEFAULT_MAP_ZOOM = 6
+const DEFAULT_MAP_CENTER = [52.5, -1.5]
+const DEFAULT_MAP_ZOOM = 7
 const PREFERENCE_KEYS = {
     mode: "ui_pref_mode",
     metric: "ui_pref_area_metric",
@@ -238,16 +238,10 @@ function availabilityClass(value) {
 }
 
 function resultStatusType(item) {
-    if (
-        item.accepting_adults === "yes" ||
-        item.accepting_children === "yes"
-    ) {
+    if (item.accepting_adults === "yes" || item.accepting_children === "yes") {
         return "yes"
     }
-    if (
-        item.accepting_adults === "no" &&
-        item.accepting_children === "no"
-    ) {
+    if (item.accepting_adults === "no" && item.accepting_children === "no") {
         return "no"
     }
     return "unknown"
@@ -272,7 +266,9 @@ function updateResultsTitle() {
         return
     }
     resultsTitleEl.textContent =
-        searchMode === "viewport" ? "Nearest to map center" : "Nearest Practices"
+        searchMode === "viewport"
+            ? "Nearest to map center"
+            : "Nearest Practices"
 }
 
 function saveUiPreferences() {
@@ -503,15 +499,15 @@ function renderMarkers(sorted) {
                 `<div class="clinic-popup__address">${item.address}</div>` +
                 `<div class="clinic-popup__postcode">${item.postcode}</div>` +
                 `<div class="clinic-popup__status-row">` +
-                    `<span class="clinic-popup__status-label">NHS adults</span>` +
-                    `<span class="clinic-popup__pill ${availabilityClass(adultStatus)}">${availabilityLabel(adultStatus)}</span>` +
+                `<span class="clinic-popup__status-label">NHS adults</span>` +
+                `<span class="clinic-popup__pill ${availabilityClass(adultStatus)}">${availabilityLabel(adultStatus)}</span>` +
                 `</div>` +
                 `<div class="clinic-popup__status-row">` +
-                    `<span class="clinic-popup__status-label">NHS children</span>` +
-                    `<span class="clinic-popup__pill ${availabilityClass(childrenStatus)}">${availabilityLabel(childrenStatus)}</span>` +
+                `<span class="clinic-popup__status-label">NHS children</span>` +
+                `<span class="clinic-popup__pill ${availabilityClass(childrenStatus)}">${availabilityLabel(childrenStatus)}</span>` +
                 `</div>` +
                 `<a class="clinic-popup__link" target="_blank" rel="noopener noreferrer" href="${mapsUrl}">Open in Google Maps</a>` +
-            `</div>`,
+                `</div>`,
             { className: "clinic-popup-shell", maxWidth: 340 },
         )
         marker.on("click", () => {
@@ -925,7 +921,12 @@ function metricDefinition(metricKey) {
     return "Area-level metric for this MSOA."
 }
 
-function buildCompareHelpHtml(metricLabel, metricKey, directionText, sampleSize) {
+function buildCompareHelpHtml(
+    metricLabel,
+    metricKey,
+    directionText,
+    sampleSize,
+) {
     return (
         `<details class="compare-help">` +
         `<summary>How to read this</summary>` +
@@ -1027,7 +1028,8 @@ function updateCompareCard(searchLat, searchLon) {
 
     let areaCode = null
     if (searchMode === "radius") {
-        areaCode = forcedCompareAreaCode || findAreaCodeByPoint(searchLat, searchLon)
+        areaCode =
+            forcedCompareAreaCode || findAreaCodeByPoint(searchLat, searchLon)
     } else {
         areaCode =
             forcedCompareAreaCode || findAreaCodeByPoint(searchLat, searchLon)
