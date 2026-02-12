@@ -6,9 +6,16 @@ Finding an NHS dentist is difficult and often opaque. This project makes public 
 
 ## Scope
 
-- `MVP`: postcode search, nearest practices by distance, adult/children acceptance flags, disclaimer, and deployed static app.
-- `V1`: radius filters, children/adults toggle, dental-desert banner, choropleth overlays, area comparison card.
-- `V2`: travel-time mode, trends over time, optional API and notifications.
+- `Current`: postcode/address search, viewport + radius modes, NHS adult/children/no-acceptance filters, nearest-distance insights, choropleth overlays, MSOA benchmark card, shareable URLs, and GitHub-backed feedback links.
+
+## Current App Highlights
+
+- Viewport mode is the default search mode.
+- Shareable URLs preserve key state (`q`, filter mode, radius, overlay, map view).
+- Sidebar includes one-click "Use my location" and quick "Share" actions (copy link / copy summary).
+- Insight card surfaces nearest accepting adults/children distances for screenshot-friendly summaries.
+- Overlay guidance includes explicit England-only coverage warnings and interpretation notes.
+- Feedback links can open prefilled GitHub issues for incorrect practice information.
 
 ## Repo Layout
 
@@ -45,9 +52,10 @@ This repo includes a GitHub Actions workflow at
 
 The deploy workflow:
 
-- Does not run `make build-data`.
 - Validates that committed `data/processed/` artifacts are present.
-- Publishes `frontend/` at the site root (`/`) and includes committed `data/processed/`.
+- If `NHS_API_SUBSCRIPTION_KEY` is available, it attempts a best-effort NHS refresh of practice/availability data and rebuilds `data/processed/` (with retries), while non-NHS denominator inputs remain fixed/seed-backed in CI.
+- On refresh failure, it restores the committed `data/processed/` snapshot and still deploys.
+- Publishes `frontend/` at the site root (`/`) and includes `data/processed/`.
 
 ## Use Live NHS Data
 
@@ -89,7 +97,7 @@ If no key is present, the scripts intentionally fall back to seed data for local
 - `make build-data` runs `scripts/enrich_practices_lsoa.py` to attach LSOA codes from postcodes (via `postcodes.io`) to practices.
 - `scripts/fetch_population.py` pulls real LSOA population denominators from Nomis dataset `NM_2014_1` (2021-based small area estimates), with seed fallback only on request failure.
 - `scripts/build_data.py` aggregates those LSOA denominators and practice counts into MSOA-level metrics for the compare card and overlays.
-- Overlay is intentionally off by default because current area polygons are synthetic unless real boundaries are supplied.
+- Overlay is enabled by default in the current UI.
 - To start using real polygons, set:
 
 ```bash
