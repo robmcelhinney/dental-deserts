@@ -116,15 +116,17 @@ let lastSearchPoint = null
 let lastSearchContext = ""
 let forcedCompareAreaCode = null
 let forcedOutlineLsoaCode = null
-let searchMode = "radius"
+let searchMode = "viewport"
 let radiusCircle = null
-const MAX_MAP_MARKERS = 1000
+const MAX_MAP_MARKERS = 200
 const VIEWPORT_MIN_ZOOM = 9
-const MAX_NON_ENGLAND_OVERLAY_AREAS = 500
+const MAX_OVERLAY_AREAS_TOTAL = 1200
+const MAX_NON_ENGLAND_OVERLAY_AREAS = 10
 const OVERLAY_VIEW_PADDING = 0.25
 const OUTSIDE_ENGLAND_HOVER_WARNING =
     "Area info is currently England-only. Hovered area is outside England."
-const COVERAGE_WARNING_BASE = "Warning: Area overlay coverage is currently England only."
+const COVERAGE_WARNING_BASE =
+    "Warning: Area overlay coverage is currently England only."
 const AREA_COLOR_SCHEMES = {
     contrast: [
         "#f7fbff",
@@ -831,15 +833,8 @@ function selectVisibleAreaFeatures() {
                     entry.feature.properties.area_code,
             ),
     )
-
-    if (nonEnglandCandidates.length <= MAX_NON_ENGLAND_OVERLAY_AREAS) {
-        return englandCandidates
-            .concat(nonEnglandCandidates)
-            .map((entry) => entry.feature)
-    }
-
     const center = map.getCenter()
-    nonEnglandCandidates.sort((a, b) => {
+    const sortByDistance = (a, b) => {
         const da = haversineKm(
             center.lat,
             center.lng,
@@ -853,10 +848,21 @@ function selectVisibleAreaFeatures() {
             b.centroid.lon,
         )
         return da - db
-    })
+    }
+    englandCandidates.sort(sortByDistance)
+    nonEnglandCandidates.sort(sortByDistance)
 
-    return englandCandidates
-        .concat(nonEnglandCandidates.slice(0, MAX_NON_ENGLAND_OVERLAY_AREAS))
+    const limitedEngland = englandCandidates.slice(0, MAX_OVERLAY_AREAS_TOTAL)
+    const remainingSlots = Math.max(
+        0,
+        MAX_OVERLAY_AREAS_TOTAL - limitedEngland.length,
+    )
+    const nonEnglandLimit = Math.min(
+        MAX_NON_ENGLAND_OVERLAY_AREAS,
+        remainingSlots,
+    )
+    return limitedEngland
+        .concat(nonEnglandCandidates.slice(0, nonEnglandLimit))
         .map((entry) => entry.feature)
 }
 
