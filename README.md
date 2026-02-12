@@ -1,4 +1,4 @@
-# NHS Dental Desert
+# NHS Dental Deserts
 
 A postcode-driven web app to visualize NHS dental access near a user, including reported acceptance of new NHS adults/children, distance to nearby practices, and area-level access pressure and deprivation context.
 
