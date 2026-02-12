@@ -54,37 +54,7 @@ jobs:
                       && python3 scripts/fetch_availability.py \
                       && cp -f data/seed/population.csv data/raw/population.csv \
                       && cp -f data/seed/imd.csv data/raw/imd.csv \
-                      && python3 - <<'PY'
-import csv
-from pathlib import Path
-
-src = Path("data/raw/practices.csv")
-dst = Path("data/raw/postcode_lookup.csv")
-rows = []
-if src.exists():
-    with src.open("r", encoding="utf-8") as f:
-        for row in csv.DictReader(f):
-            postcode = "".join((row.get("postcode") or "").upper().split())
-            lat = (row.get("lat") or "").strip()
-            lon = (row.get("lon") or "").strip()
-            area_code = (row.get("area_code") or "").strip()
-            if postcode and lat and lon:
-                rows.append(
-                    {
-                        "postcode": postcode,
-                        "lat": lat,
-                        "lon": lon,
-                        "area_code": area_code,
-                    }
-                )
-dedup = {r["postcode"]: r for r in rows}
-dst.parent.mkdir(parents=True, exist_ok=True)
-with dst.open("w", newline="", encoding="utf-8") as f:
-    writer = csv.DictWriter(f, fieldnames=["postcode", "lat", "lon", "area_code"])
-    writer.writeheader()
-    writer.writerows(dedup.values())
-print(f"Wrote {dst} ({len(dedup)} rows, source=practices)")
-PY
+                      && python3 scripts/build_postcode_lookup_from_practices.py \
                       && python3 scripts/build_data.py; then
                       test -f data/processed/practices.geojson
                       test -f data/processed/areas.geojson
