@@ -585,6 +585,33 @@ def write_areas_and_metrics(practices: list[Practice]) -> dict[str, dict[str, fl
             "imd_decile": "unknown",
         }
 
+    # Ensure every England MSOA boundary has a metrics row, even when upstream
+    # population/lookup coverage is incomplete for that area in this run.
+    for row in msoa_boundary_rows:
+        msoa_code = str(row.get("msoa_code") or "").strip()
+        msoa_name = str(row.get("msoa_name") or "").strip()
+        if msoa_code and not is_england_msoa_code(msoa_code):
+            continue
+        if not msoa_code:
+            continue
+        msoa_key = msoa_key_from_code(msoa_code)
+        if msoa_key in metrics:
+            continue
+        metrics[msoa_key] = {
+            "area_code": msoa_key,
+            "area_name": msoa_name or msoa_code,
+            "population_total": 0,
+            "population_adults": 0,
+            "population_children": 0,
+            "practice_count": 0,
+            "accepting_adults_count": 0,
+            "accepting_children_count": 0,
+            "practices_per_10k": 0.0,
+            "accepting_adults_per_10k_adults": 0.0,
+            "accepting_children_per_10k_children": 0.0,
+            "imd_decile": "unknown",
+        }
+
     areas_features = []
     if msoa_boundary_rows:
         metrics_by_name = {str(v["area_name"]).strip().upper(): k for k, v in metrics.items()}

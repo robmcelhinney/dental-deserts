@@ -24,53 +24,14 @@ jobs:
             - name: Checkout
               uses: actions/checkout@v4
 
-            - name: Set up Python
-              uses: actions/setup-python@v5
-              with:
-                  python-version: "3.11"
-
-            - name: Build processed data
-              env:
-                  NHS_API_SUBSCRIPTION_KEY: ${{ secrets.NHS_API_SUBSCRIPTION_KEY }}
+            - name: Validate committed processed data
               run: |
                   set -euo pipefail
-                  FALLBACK_DIR="data/fallback/processed"
-                  MIN_CLINICS=100
-                  MAX_ATTEMPTS=3
-
-                  if [ -n "${NHS_API_SUBSCRIPTION_KEY}" ]; then
-                    echo "NHS_API_SUBSCRIPTION_KEY is present."
-                  else
-                    echo "::warning::NHS_API_SUBSCRIPTION_KEY is missing; falling back to seed practices."
-                  fi
-
-                  build_ok=0
-                  for attempt in $(seq 1 "${MAX_ATTEMPTS}"); do
-                    echo "Build attempt ${attempt}/${MAX_ATTEMPTS}"
-                    if make build-data; then
-                      clinic_count="$(python3 -c 'import json, pathlib; p = pathlib.Path("data/processed/practices.geojson"); print(len(json.loads(p.read_text(encoding="utf-8")).get("features", [])) if p.exists() else 0)' 2>/dev/null || echo 0)"
-                      echo "Clinics in practices.geojson: ${clinic_count}"
-                      if [ "${clinic_count}" -ge "${MIN_CLINICS}" ]; then
-                        build_ok=1
-                        break
-                      fi
-                      echo "::warning::Build produced too few clinics (${clinic_count} < ${MIN_CLINICS}); retrying."
-                    else
-                      echo "::warning::make build-data failed; retrying."
-                    fi
-                    sleep $((attempt * 5))
-                  done
-
-                  if [ "${build_ok}" -ne 1 ]; then
-                    if [ -f "${FALLBACK_DIR}/practices.geojson" ] && [ -f "${FALLBACK_DIR}/areas.geojson" ] && [ -f "${FALLBACK_DIR}/area_metrics.json" ]; then
-                      echo "::warning::Using committed fallback snapshot from ${FALLBACK_DIR}."
-                      rm -rf data/processed
-                      cp -R "${FALLBACK_DIR}" data/processed
-                    else
-                      echo "::error::Live build failed and fallback snapshot is missing/incomplete at ${FALLBACK_DIR}."
-                      exit 1
-                    fi
-                  fi
+                  test -f data/processed/practices.geojson
+                  test -f data/processed/areas.geojson
+                  test -f data/processed/area_metrics.json
+                  test -f data/processed/qa_report.json
+                  echo "Using committed data/processed snapshot (no CI rebuild)."
 
             - name: Prepare Pages artifact
               run: |
