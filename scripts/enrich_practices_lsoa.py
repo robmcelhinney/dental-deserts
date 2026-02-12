@@ -13,6 +13,7 @@ from urllib.request import Request, urlopen
 PRACTICES_PATH = Path("data/raw/practices.csv")
 CACHE_PATH = Path("data/cache/postcode_lsoa.json")
 LSOA_BOUNDARIES_PATH = Path("data/raw/lsoa_boundaries.geojson")
+LSOA_CODE_RE = re.compile(r"^[EW]010\d{5}$")
 
 
 def normalize_postcode(postcode: str) -> str:
@@ -50,9 +51,17 @@ def fetch_postcodes_lsoa(postcodes: list[str]) -> dict[str, dict[str, str]]:
     for item in body.get("result", []):
         query = normalize_postcode(str(item.get("query", "")))
         result = item.get("result") or {}
+        codes = result.get("codes") or {}
         lsoa = str(result.get("lsoa") or "").strip()
         msoa = str(result.get("msoa") or "").strip()
-        results[query] = {"lsoa": lsoa, "msoa": msoa}
+        lsoa_code = str(codes.get("lsoa") or "").strip()
+        msoa_code = str(codes.get("msoa") or "").strip()
+        results[query] = {
+            "lsoa": lsoa,
+            "msoa": msoa,
+            "lsoa_code": lsoa_code,
+            "msoa_code": msoa_code,
+        }
     return results
 
 
@@ -74,6 +83,14 @@ def load_lsoa_name_to_code() -> dict[str, str]:
     return lookup
 
 
+def cached_has_canonical_lsoa(cache_entry: dict[str, str]) -> bool:
+    code = str(cache_entry.get("lsoa_code") or "").strip()
+    if LSOA_CODE_RE.match(code):
+        return True
+    lsoa = str(cache_entry.get("lsoa") or "").strip()
+    return LSOA_CODE_RE.match(lsoa) is not None
+
+
 def main() -> None:
     if not PRACTICES_PATH.exists():
         print(f"Skipped LSOA enrichment; {PRACTICES_PATH} not found.")
@@ -88,7 +105,10 @@ def main() -> None:
         {
             normalize_postcode(row.get("postcode", ""))
             for row in rows
-            if normalize_postcode(row.get("postcode", "")) and not cache.get(normalize_postcode(row.get("postcode", "")), {}).get("lsoa")
+            if normalize_postcode(row.get("postcode", ""))
+            and not cached_has_canonical_lsoa(
+                cache.get(normalize_postcode(row.get("postcode", "")), {})
+            )
         }
     )
 
@@ -110,9 +130,16 @@ def main() -> None:
             continue
         cached = cache.get(postcode_norm, {})
         lsoa = cached.get("lsoa", "")
+        lsoa_code = str(cached.get("lsoa_code") or "").strip()
         existing_area = row.get("area_code", "").strip()
         if lsoa and (not existing_area or existing_area.startswith("COUNTY::")):
-            code = lsoa_name_to_code.get(lsoa) or lsoa_name_to_code.get(lsoa.upper())
+            code = ""
+            if LSOA_CODE_RE.match(lsoa_code):
+                code = lsoa_code
+            elif LSOA_CODE_RE.match(str(lsoa)):
+                code = str(lsoa)
+            else:
+                code = lsoa_name_to_code.get(lsoa) or lsoa_name_to_code.get(lsoa.upper()) or ""
             row["area_code"] = f"LSOA::{code}" if code else f"LSOA::{lsoa}"
             updated += 1
 

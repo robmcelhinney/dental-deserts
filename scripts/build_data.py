@@ -384,7 +384,7 @@ def write_practices_geojson(practices: list[Practice]) -> None:
         if p.geocode_failed or p.lat is None or p.lon is None:
             continue
         lsoa_code = lsoa_code_from_area(p.area_code)
-        if lsoa_code and not is_england_lsoa_code(lsoa_code):
+        if lsoa_code and LSOA_CODE_RE.match(lsoa_code) and not is_england_lsoa_code(lsoa_code):
             continue
         features.append(
             {
