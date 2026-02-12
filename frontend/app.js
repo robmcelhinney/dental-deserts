@@ -86,6 +86,8 @@ const resultsEmptyEl = document.getElementById("results-empty")
 const loadMoreButton = document.getElementById("load-more")
 const overlayExplainerEl = document.getElementById("overlay-explainer")
 const viewportZoomOverlayEl = document.getElementById("viewport-zoom-overlay")
+const coverageMoreEl = document.getElementById("coverage-more")
+const coverageMoreTextEl = document.getElementById("coverage-more-text")
 
 const areaMetricConfig = {
     pressure: {
@@ -161,6 +163,8 @@ let areaFeatureIndex = []
 let areaColorScheme = "contrast"
 let dataSnapshotLabel = "unknown"
 let startupQuery = null
+let hasUserInteracted = false
+let initializing = true
 
 const ENGLAND_WALES_BOUNDS = {
     minLat: 49.8,
@@ -362,10 +366,12 @@ function buildShareUrl() {
     params.set("radius", String(Number(radiusSelect.value)))
     params.set("overlay", urlValueForOverlay())
     params.set("search", searchMode)
-    const center = map.getCenter()
-    params.set("lat", center.lat.toFixed(5))
-    params.set("lon", center.lng.toFixed(5))
-    params.set("z", String(map.getZoom()))
+    if (hasUserInteracted) {
+        const center = map.getCenter()
+        params.set("lat", center.lat.toFixed(5))
+        params.set("lon", center.lng.toFixed(5))
+        params.set("z", String(map.getZoom()))
+    }
     return `${window.location.pathname}?${params.toString()}`
 }
 
@@ -383,6 +389,10 @@ function showShareStatus(message) {
     window.setTimeout(() => {
         shareStatusEl.classList.add("is-empty")
     }, 2500)
+}
+
+function markUserInteracted() {
+    hasUserInteracted = true
 }
 
 function saveUiPreferences() {
@@ -589,16 +599,20 @@ function parseStartupQuery() {
     if (search === "radius" || search === "viewport") {
         searchMode = search
     }
-    const lat = Number(params.get("lat"))
-    const lon = Number(params.get("lon"))
-    const z = Number(params.get("z"))
+    const hasLat = params.has("lat")
+    const hasLon = params.has("lon")
+    const lat = hasLat ? Number(params.get("lat")) : null
+    const lon = hasLon ? Number(params.get("lon")) : null
+    const z = params.has("z") ? Number(params.get("z")) : null
     if (Number.isFinite(lat) && Number.isFinite(lon)) {
         map.setView([lat, lon], Number.isFinite(z) ? z : map.getZoom())
+        markUserInteracted()
     }
     const q = params.get("q")
     if (q) {
         postcodeInput.value = q
         startupQuery = q
+        markUserInteracted()
     }
 }
 
@@ -658,8 +672,7 @@ function buildRankedResults(lat, lon) {
             }
             if (mode === "none") {
                 return (
-                    p.accepting_adults === "no" &&
-                    p.accepting_children === "no"
+                    p.accepting_adults === "no" && p.accepting_children === "no"
                 )
             }
             return true
@@ -686,8 +699,7 @@ function buildViewportResults() {
             }
             if (mode === "none") {
                 return (
-                    p.accepting_adults === "no" &&
-                    p.accepting_children === "no"
+                    p.accepting_adults === "no" && p.accepting_children === "no"
                 )
             }
             return true
@@ -1771,10 +1783,18 @@ function isInEnglandWalesApprox(lat, lon) {
 function updateCoverageBanner() {
     if (!areaDataLoaded) {
         coverageBannerEl.classList.add("is-empty")
+        if (coverageMoreEl) {
+            coverageMoreEl.classList.add("is-empty")
+            coverageMoreEl.open = false
+        }
         return
     }
     if (!areaOverlayCheckbox.checked) {
         coverageBannerEl.classList.add("is-empty")
+        if (coverageMoreEl) {
+            coverageMoreEl.classList.add("is-empty")
+            coverageMoreEl.open = false
+        }
         return
     }
     const center = map.getCenter()
@@ -1786,10 +1806,21 @@ function updateCoverageBanner() {
         !findContainingEnglandAreaCodeByPoint(center.lat, center.lng)
     if (!outsideCoverage) {
         coverageBannerEl.classList.add("is-empty")
+        if (coverageMoreEl) {
+            coverageMoreEl.classList.add("is-empty")
+            coverageMoreEl.open = false
+        }
         return
     }
-    coverageBannerEl.textContent = `${COVERAGE_WARNING_BASE} You are currently outside England coverage.`
+    coverageBannerEl.textContent = COVERAGE_WARNING_BASE
     coverageBannerEl.classList.remove("is-empty")
+    if (coverageMoreEl) {
+        coverageMoreEl.classList.remove("is-empty")
+    }
+    if (coverageMoreTextEl) {
+        coverageMoreTextEl.textContent =
+            "You are currently outside England coverage, so area-level metrics here are not directly comparable yet."
+    }
 }
 
 async function loadPractices() {
@@ -1928,6 +1959,24 @@ function updateStatusWithResultCount() {
 
 function recomputeAndRenderResults() {
     if (searchMode === "viewport") {
+        if (!hasUserInteracted) {
+            rankedResults = []
+            visibleResultCount = 25
+            activePracticeId = null
+            lastSearchPoint = null
+            lastSearchContext = ""
+            renderResults()
+            resultsEmptyEl.textContent =
+                "Move the map, zoom in, or use Search to load practices."
+            statusEl.textContent =
+                "Viewport mode ready. Move map or zoom in to load practices."
+            statusEl.classList.remove("is-empty")
+            updateDentalDesertBanner()
+            updateCompareCard(null, null)
+            updateInsightCard()
+            updateUrlState()
+            return
+        }
         const center = map.getCenter()
         lastSearchPoint = { lat: center.lat, lon: center.lng }
         lastSearchContext = "Viewport mode."
@@ -1968,6 +2017,7 @@ function recomputeAndRenderResults() {
 }
 
 function runSearchFromPoint(lat, lon, contextLabel, keepCurrentZoom = false) {
+    markUserInteracted()
     lastSearchPoint = { lat, lon }
     lastSearchContext = contextLabel
 
@@ -1999,7 +2049,10 @@ function runSearchFromPoint(lat, lon, contextLabel, keepCurrentZoom = false) {
     updateUrlState()
 }
 
-function setSearchMode(nextMode) {
+function setSearchMode(nextMode, userInitiated = true) {
+    if (userInitiated) {
+        markUserInteracted()
+    }
     searchMode = nextMode
     const isRadius = nextMode === "radius"
     searchModeRadiusButton.classList.toggle("active", isRadius)
@@ -2020,7 +2073,9 @@ function setSearchMode(nextMode) {
         clearSelectedAreaOutline()
         statusEl.textContent = `Viewport mode enabled. Zoom in to at least ${VIEWPORT_MIN_ZOOM} to show clinics.`
         statusEl.classList.remove("is-empty")
-        recomputeAndRenderResults()
+        if (userInitiated || hasUserInteracted) {
+            recomputeAndRenderResults()
+        }
     }
     updateRadiusCircle()
     updateViewportZoomOverlay()
@@ -2029,6 +2084,7 @@ function setSearchMode(nextMode) {
 }
 
 function resetView() {
+    markUserInteracted()
     forcedCompareAreaCode = null
     forcedOutlineLsoaCode = null
     clearSelectedAreaOutline()
@@ -2051,6 +2107,7 @@ function resetView() {
 }
 
 async function runSearch() {
+    markUserInteracted()
     if (searchMode !== "radius") {
         return
     }
@@ -2141,6 +2198,7 @@ function copySummary() {
 }
 
 function useCurrentLocation() {
+    markUserInteracted()
     if (!navigator.geolocation) {
         showShareStatus("Geolocation is not supported in this browser.")
         return
@@ -2183,12 +2241,14 @@ loadMoreButton.addEventListener("click", () => {
     renderResults()
 })
 radiusSelect.addEventListener("input", () => {
+    markUserInteracted()
     updateRadiusDisplay()
     recomputeAndRenderResults()
     saveUiPreferences()
     updateUrlState()
 })
 modeSelect.addEventListener("change", () => {
+    markUserInteracted()
     recomputeAndRenderResults()
     saveUiPreferences()
     updateUrlState()
@@ -2261,6 +2321,9 @@ if (areaColoringSelect) {
     })
 }
 map.on("moveend", () => {
+    if (!initializing) {
+        markUserInteracted()
+    }
     if (searchMode === "viewport") {
         recomputeAndRenderResults()
     }
@@ -2284,7 +2347,7 @@ map.on("moveend", () => {
     clearSelectedAreaOutline()
     resultsEl.classList.add("is-empty")
     resultsEmptyEl.classList.remove("is-empty")
-    setSearchMode(searchMode)
+    setSearchMode(searchMode, false)
     updateRadiusDisplay()
     updateResultsTitle()
     updateCoverageBanner()
@@ -2301,5 +2364,6 @@ map.on("moveend", () => {
     } else if (searchMode === "viewport") {
         recomputeAndRenderResults()
     }
+    initializing = false
     updateUrlState()
 })()

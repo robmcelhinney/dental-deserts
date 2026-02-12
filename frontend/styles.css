@@ -100,14 +100,38 @@ input[type="checkbox"] {
 
 .coverage-warning {
   margin-top: 10px;
-  padding: 9px 10px;
+  padding: 7px 10px;
   border-radius: 8px;
   border: 1px solid #d78b97;
   background: #fdebed;
   color: #7a2230;
-  font-size: 0.94rem;
-  font-weight: 650;
+  font-size: 0.88rem;
+  font-weight: 600;
   line-height: 1.35;
+}
+
+.coverage-more {
+  margin-top: 4px;
+}
+
+.coverage-more summary {
+  cursor: pointer;
+  color: #31547a;
+  font-size: 0.82rem;
+  font-weight: 600;
+}
+
+.overlay-advanced {
+  margin-top: 8px;
+  border-top: 1px solid #dce3ef;
+  padding-top: 8px;
+}
+
+.overlay-advanced summary {
+  cursor: pointer;
+  color: #31547a;
+  font-size: 0.86rem;
+  font-weight: 600;
 }
 
 .ethics-note {
@@ -169,10 +193,6 @@ input[type="checkbox"] {
 
 .share-menu[open] summary::after {
   content: "▴";
-}
-
-.share-actions {
-  gap: 8px;
 }
 
 #use-location,
@@ -648,7 +668,7 @@ select:focus-visible,
 }
 
 .control-group {
-  padding: 12px 0;
+  padding: 10px 0;
   border-bottom: 1px solid var(--border);
 }
 
@@ -702,6 +722,22 @@ select:focus-visible,
   font-size: 1.05rem;
 }
 
+.about-panel {
+  margin-top: 12px;
+  border-top: 1px solid var(--border);
+  padding-top: 10px;
+}
+
+.about-panel summary {
+  cursor: pointer;
+  color: #31547a;
+  font-weight: 600;
+}
+
+.about-body {
+  padding-top: 6px;
+}
+
 .how-to ol {
   margin: 0;
   padding-left: 20px;
@@ -723,7 +759,22 @@ select:focus-visible,
   }
 
   .controls {
-    padding: 16px;
+    padding: 12px;
     max-height: 54vh;
+  }
+
+  .control-group {
+    padding: 8px 0;
+  }
+
+  .note {
+    font-size: 0.9rem;
+    line-height: 1.3;
+  }
+
+  input,
+  button,
+  select {
+    padding: 8px 9px;
   }
 }
