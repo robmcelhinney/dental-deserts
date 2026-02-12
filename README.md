@@ -16,8 +16,7 @@ Finding an NHS dentist is difficult and often opaque. This project makes public 
 - `data/seed/`: committed fallback seed inputs used when live fetches fail
 - `data/raw/`: generated fetch artifacts (git-ignored)
 - `data/cache/`: postcode geocoding cache
-- `data/processed/`: frontend-ready artifacts
-- `data/fallback/processed/`: committed deploy fallback snapshot used by CI when live build retries fail
+- `data/processed/`: frontend-ready artifacts committed and deployed by GitHub Pages
 - `scripts/`: reproducible data pipeline scripts
 - `docs/`: methodology, ethics, source notes, and data dictionary
 
@@ -46,9 +45,9 @@ This repo includes a GitHub Actions workflow at
 
 The deploy workflow:
 
-- Runs `make build-data` with retries.
-- If retries fail (or produce too few clinics), it falls back to committed snapshot data in `data/fallback/processed/`.
-- Publishes `frontend/` at the site root (`/`) and includes `data/processed/`.
+- Does not run `make build-data`.
+- Validates that committed `data/processed/` artifacts are present.
+- Publishes `frontend/` at the site root (`/`) and includes committed `data/processed/`.
 
 ## Use Live NHS Data
 

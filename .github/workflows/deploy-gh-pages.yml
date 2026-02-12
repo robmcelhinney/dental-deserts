@@ -24,7 +24,7 @@ jobs:
             - name: Checkout
               uses: actions/checkout@v4
 
-            - name: Validate committed processed data
+            - name: Validate committed processed snapshot
               run: |
                   set -euo pipefail
                   test -f data/processed/practices.geojson
