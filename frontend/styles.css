@@ -94,11 +94,16 @@ input[type="checkbox"] {
   font-weight: 500;
 }
 
-#coverage-banner {
-  margin-top: 8px;
+.coverage-warning {
+  margin-top: 10px;
+  padding: 9px 10px;
+  border-radius: 8px;
+  border: 1px solid #d78b97;
+  background: #fdebed;
   color: #7a2230;
-  font-size: 0.9rem;
-  font-weight: 500;
+  font-size: 0.94rem;
+  font-weight: 650;
+  line-height: 1.35;
 }
 
 button:focus-visible,

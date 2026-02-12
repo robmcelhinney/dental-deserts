@@ -124,6 +124,7 @@ const MAX_OVERLAY_AREAS = 500
 const OVERLAY_VIEW_PADDING = 0.25
 const OUTSIDE_ENGLAND_HOVER_WARNING =
     "Area info is currently England-only. Hovered area is outside England."
+const COVERAGE_WARNING_BASE = "Warning: Area overlay coverage is currently England only."
 const AREA_COLOR_SCHEMES = {
     contrast: [
         "#f7fbff",
@@ -812,14 +813,8 @@ function selectVisibleAreaFeatures() {
     }
     const paddedBounds = map.getBounds().pad(OVERLAY_VIEW_PADDING)
     const visibleBox = mapBoundsToBox(paddedBounds)
-    const candidates = areaFeatureIndex.filter(
-        (entry) =>
-            boundsIntersect(entry.bounds, visibleBox) &&
-            isEnglandAreaCode(
-                entry.feature &&
-                    entry.feature.properties &&
-                    entry.feature.properties.area_code,
-            ),
+    const candidates = areaFeatureIndex.filter((entry) =>
+        boundsIntersect(entry.bounds, visibleBox),
     )
     if (candidates.length <= MAX_OVERLAY_AREAS) {
         return candidates.map((entry) => entry.feature)
@@ -1234,7 +1229,18 @@ function computeAreaBreaks() {
 }
 
 function styleArea(feature) {
-    const value = getAreaMetricValue(feature.properties.area_code)
+    const areaCode =
+        feature && feature.properties ? feature.properties.area_code : null
+    const isEnglandArea = isEnglandAreaCode(areaCode)
+    if (!isEnglandArea) {
+        return {
+            weight: 0.45,
+            color: "#a75c66",
+            fillOpacity: 0.24,
+            fillColor: "#f2b7be",
+        }
+    }
+    const value = getAreaMetricValue(areaCode)
     const coloringOff = areaColorScheme === "off"
     return {
         weight: 0.45,
@@ -1491,6 +1497,10 @@ function updateCoverageBanner() {
         coverageBannerEl.classList.add("is-empty")
         return
     }
+    if (!areaOverlayCheckbox.checked) {
+        coverageBannerEl.classList.add("is-empty")
+        return
+    }
     const center = map.getCenter()
     const hasAreaFeatures = Boolean(
         areasGeojson && areasGeojson.features && areasGeojson.features.length,
@@ -1498,7 +1508,10 @@ function updateCoverageBanner() {
     const outsideCoverage =
         !hasAreaFeatures ||
         !findContainingEnglandAreaCodeByPoint(center.lat, center.lng)
-    coverageBannerEl.classList.toggle("is-empty", !outsideCoverage)
+    coverageBannerEl.textContent = outsideCoverage
+        ? `${COVERAGE_WARNING_BASE} You are currently outside England coverage.`
+        : COVERAGE_WARNING_BASE
+    coverageBannerEl.classList.remove("is-empty")
 }
 
 async function loadPractices() {
