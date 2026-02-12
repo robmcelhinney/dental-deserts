@@ -120,7 +120,7 @@ let searchMode = "radius"
 let radiusCircle = null
 const MAX_MAP_MARKERS = 1000
 const VIEWPORT_MIN_ZOOM = 9
-const MAX_OVERLAY_AREAS = 500
+const MAX_NON_ENGLAND_OVERLAY_AREAS = 500
 const OVERLAY_VIEW_PADDING = 0.25
 const OUTSIDE_ENGLAND_HOVER_WARNING =
     "Area info is currently England-only. Hovered area is outside England."
@@ -832,12 +832,14 @@ function selectVisibleAreaFeatures() {
             ),
     )
 
-    if (candidates.length <= MAX_OVERLAY_AREAS) {
-        return candidates.map((entry) => entry.feature)
+    if (nonEnglandCandidates.length <= MAX_NON_ENGLAND_OVERLAY_AREAS) {
+        return englandCandidates
+            .concat(nonEnglandCandidates)
+            .map((entry) => entry.feature)
     }
 
     const center = map.getCenter()
-    const sortByDistance = (a, b) => {
+    nonEnglandCandidates.sort((a, b) => {
         const da = haversineKm(
             center.lat,
             center.lng,
@@ -851,19 +853,10 @@ function selectVisibleAreaFeatures() {
             b.centroid.lon,
         )
         return da - db
-    }
+    })
 
-    if (englandCandidates.length >= MAX_OVERLAY_AREAS) {
-        englandCandidates.sort(sortByDistance)
-        return englandCandidates
-            .slice(0, MAX_OVERLAY_AREAS)
-            .map((entry) => entry.feature)
-    }
-
-    const remaining = MAX_OVERLAY_AREAS - englandCandidates.length
-    nonEnglandCandidates.sort(sortByDistance)
     return englandCandidates
-        .concat(nonEnglandCandidates.slice(0, remaining))
+        .concat(nonEnglandCandidates.slice(0, MAX_NON_ENGLAND_OVERLAY_AREAS))
         .map((entry) => entry.feature)
 }
 
