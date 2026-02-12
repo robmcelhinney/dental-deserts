@@ -339,7 +339,7 @@ function compareCardFooterHtml() {
 
 async function loadSnapshotDate() {
     try {
-        const resp = await fetch("../data/processed/qa_report.json")
+        const resp = await fetch("data/processed/qa_report.json")
         if (!resp.ok) {
             return
         }
@@ -1465,7 +1465,7 @@ function updateCoverageBanner() {
 }
 
 async function loadPractices() {
-    const resp = await fetch("../data/processed/practices.geojson")
+    const resp = await fetch("data/processed/practices.geojson")
     const geo = await resp.json()
     practices = geo.features.map((f) => ({
         ...f.properties,
@@ -1476,8 +1476,8 @@ async function loadPractices() {
 
 async function loadAreaData() {
     const [areasResp, metricsResp] = await Promise.all([
-        fetch("../data/processed/areas.geojson"),
-        fetch("../data/processed/area_metrics.json"),
+        fetch("data/processed/areas.geojson"),
+        fetch("data/processed/area_metrics.json"),
     ])
     if (!areasResp.ok || !metricsResp.ok) {
         throw new Error("Failed to load area overlay data.")
