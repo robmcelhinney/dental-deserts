@@ -816,12 +816,28 @@ function selectVisibleAreaFeatures() {
     const candidates = areaFeatureIndex.filter((entry) =>
         boundsIntersect(entry.bounds, visibleBox),
     )
+    const englandCandidates = candidates.filter((entry) =>
+        isEnglandAreaCode(
+            entry.feature &&
+                entry.feature.properties &&
+                entry.feature.properties.area_code,
+        ),
+    )
+    const nonEnglandCandidates = candidates.filter(
+        (entry) =>
+            !isEnglandAreaCode(
+                entry.feature &&
+                    entry.feature.properties &&
+                    entry.feature.properties.area_code,
+            ),
+    )
+
     if (candidates.length <= MAX_OVERLAY_AREAS) {
         return candidates.map((entry) => entry.feature)
     }
 
     const center = map.getCenter()
-    candidates.sort((a, b) => {
+    const sortByDistance = (a, b) => {
         const da = haversineKm(
             center.lat,
             center.lng,
@@ -835,8 +851,20 @@ function selectVisibleAreaFeatures() {
             b.centroid.lon,
         )
         return da - db
-    })
-    return candidates.slice(0, MAX_OVERLAY_AREAS).map((entry) => entry.feature)
+    }
+
+    if (englandCandidates.length >= MAX_OVERLAY_AREAS) {
+        englandCandidates.sort(sortByDistance)
+        return englandCandidates
+            .slice(0, MAX_OVERLAY_AREAS)
+            .map((entry) => entry.feature)
+    }
+
+    const remaining = MAX_OVERLAY_AREAS - englandCandidates.length
+    nonEnglandCandidates.sort(sortByDistance)
+    return englandCandidates
+        .concat(nonEnglandCandidates.slice(0, remaining))
+        .map((entry) => entry.feature)
 }
 
 function findAreaCodeByPoint(lat, lon) {
@@ -1508,9 +1536,11 @@ function updateCoverageBanner() {
     const outsideCoverage =
         !hasAreaFeatures ||
         !findContainingEnglandAreaCodeByPoint(center.lat, center.lng)
-    coverageBannerEl.textContent = outsideCoverage
-        ? `${COVERAGE_WARNING_BASE} You are currently outside England coverage.`
-        : COVERAGE_WARNING_BASE
+    if (!outsideCoverage) {
+        coverageBannerEl.classList.add("is-empty")
+        return
+    }
+    coverageBannerEl.textContent = `${COVERAGE_WARNING_BASE} You are currently outside England coverage.`
     coverageBannerEl.classList.remove("is-empty")
 }
 
