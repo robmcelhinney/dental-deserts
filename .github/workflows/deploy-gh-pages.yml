@@ -24,14 +24,96 @@ jobs:
             - name: Checkout
               uses: actions/checkout@v4
 
-            - name: Validate committed processed snapshot
+            - name: Set up Python
+              uses: actions/setup-python@v5
+              with:
+                  python-version: "3.11"
+
+            - name: Refresh processed data (best effort)
+              env:
+                  NHS_API_SUBSCRIPTION_KEY: ${{ secrets.NHS_API_SUBSCRIPTION_KEY }}
               run: |
                   set -euo pipefail
                   test -f data/processed/practices.geojson
                   test -f data/processed/areas.geojson
                   test -f data/processed/area_metrics.json
                   test -f data/processed/qa_report.json
-                  echo "Using committed data/processed snapshot (no CI rebuild)."
+
+                  if [ -z "${NHS_API_SUBSCRIPTION_KEY}" ]; then
+                    echo "::warning::NHS_API_SUBSCRIPTION_KEY is missing; using committed data/processed snapshot."
+                    exit 0
+                  fi
+
+                  MAX_ATTEMPTS=3
+                  build_ok=0
+                  backup_dir="$(mktemp -d)"
+                  cp -R data/processed/. "${backup_dir}/"
+                  for attempt in $(seq 1 "${MAX_ATTEMPTS}"); do
+                    echo "NHS refresh attempt ${attempt}/${MAX_ATTEMPTS}"
+                    if python3 scripts/fetch_practices.py \
+                      && python3 scripts/fetch_availability.py \
+                      && cp -f data/seed/population.csv data/raw/population.csv \
+                      && cp -f data/seed/imd.csv data/raw/imd.csv \
+                      && python3 - <<'PY'
+import csv
+from pathlib import Path
+
+src = Path("data/raw/practices.csv")
+dst = Path("data/raw/postcode_lookup.csv")
+rows = []
+if src.exists():
+    with src.open("r", encoding="utf-8") as f:
+        for row in csv.DictReader(f):
+            postcode = "".join((row.get("postcode") or "").upper().split())
+            lat = (row.get("lat") or "").strip()
+            lon = (row.get("lon") or "").strip()
+            area_code = (row.get("area_code") or "").strip()
+            if postcode and lat and lon:
+                rows.append(
+                    {
+                        "postcode": postcode,
+                        "lat": lat,
+                        "lon": lon,
+                        "area_code": area_code,
+                    }
+                )
+dedup = {r["postcode"]: r for r in rows}
+dst.parent.mkdir(parents=True, exist_ok=True)
+with dst.open("w", newline="", encoding="utf-8") as f:
+    writer = csv.DictWriter(f, fieldnames=["postcode", "lat", "lon", "area_code"])
+    writer.writeheader()
+    writer.writerows(dedup.values())
+print(f"Wrote {dst} ({len(dedup)} rows, source=practices)")
+PY
+                      && python3 scripts/build_data.py; then
+                      test -f data/processed/practices.geojson
+                      test -f data/processed/areas.geojson
+                      test -f data/processed/area_metrics.json
+                      test -f data/processed/qa_report.json
+                      build_ok=1
+                      break
+                    fi
+                    echo "::warning::NHS refresh build failed on attempt ${attempt}; retrying."
+                    sleep $((attempt * 5))
+                  done
+
+                  if [ "${build_ok}" -ne 1 ]; then
+                    rm -rf data/processed
+                    mkdir -p data/processed
+                    cp -R "${backup_dir}/." data/processed/
+                    echo "::warning::NHS refresh failed after retries; restored committed data/processed snapshot."
+                  else
+                    echo "NHS refresh succeeded; deploying refreshed data/processed snapshot."
+                  fi
+
+            - name: Validate processed snapshot for deploy
+              run: |
+                  set -euo pipefail
+                  test -f data/processed/practices.geojson
+                  test -f data/processed/areas.geojson
+                  test -f data/processed/area_metrics.json
+                  test -f data/processed/qa_report.json
+                  echo "Using data/processed snapshot for deploy."
 
             - name: Prepare Pages artifact
               run: |
