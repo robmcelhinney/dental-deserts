@@ -33,12 +33,54 @@ jobs:
               env:
                   NHS_API_SUBSCRIPTION_KEY: ${{ secrets.NHS_API_SUBSCRIPTION_KEY }}
               run: |
+                  set -euo pipefail
+                  FALLBACK_DIR="data/fallback/processed"
+                  MIN_CLINICS=100
+                  MAX_ATTEMPTS=3
+
                   if [ -n "${NHS_API_SUBSCRIPTION_KEY}" ]; then
                     echo "NHS_API_SUBSCRIPTION_KEY is present."
                   else
                     echo "::warning::NHS_API_SUBSCRIPTION_KEY is missing; falling back to seed practices."
                   fi
-                  make build-data
+
+                  build_ok=0
+                  for attempt in $(seq 1 "${MAX_ATTEMPTS}"); do
+                    echo "Build attempt ${attempt}/${MAX_ATTEMPTS}"
+                    if make build-data; then
+                      clinic_count="$(python3 - <<'PY'
+import json
+from pathlib import Path
+path = Path("data/processed/practices.geojson")
+try:
+    payload = json.loads(path.read_text(encoding="utf-8"))
+    print(len(payload.get("features", [])))
+except Exception:
+    print(0)
+PY
+)"
+                      echo "Clinics in practices.geojson: ${clinic_count}"
+                      if [ "${clinic_count}" -ge "${MIN_CLINICS}" ]; then
+                        build_ok=1
+                        break
+                      fi
+                      echo "::warning::Build produced too few clinics (${clinic_count} < ${MIN_CLINICS}); retrying."
+                    else
+                      echo "::warning::make build-data failed; retrying."
+                    fi
+                    sleep $((attempt * 5))
+                  done
+
+                  if [ "${build_ok}" -ne 1 ]; then
+                    if [ -f "${FALLBACK_DIR}/practices.geojson" ] && [ -f "${FALLBACK_DIR}/areas.geojson" ] && [ -f "${FALLBACK_DIR}/area_metrics.json" ]; then
+                      echo "::warning::Using committed fallback snapshot from ${FALLBACK_DIR}."
+                      rm -rf data/processed
+                      cp -R "${FALLBACK_DIR}" data/processed
+                    else
+                      echo "::error::Live build failed and fallback snapshot is missing/incomplete at ${FALLBACK_DIR}."
+                      exit 1
+                    fi
+                  fi
 
             - name: Prepare Pages artifact
               run: |
