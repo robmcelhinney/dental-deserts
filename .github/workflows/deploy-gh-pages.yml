@@ -48,17 +48,7 @@ jobs:
                   for attempt in $(seq 1 "${MAX_ATTEMPTS}"); do
                     echo "Build attempt ${attempt}/${MAX_ATTEMPTS}"
                     if make build-data; then
-                      clinic_count="$(python3 - <<'PY'
-import json
-from pathlib import Path
-path = Path("data/processed/practices.geojson")
-try:
-    payload = json.loads(path.read_text(encoding="utf-8"))
-    print(len(payload.get("features", [])))
-except Exception:
-    print(0)
-PY
-)"
+                      clinic_count="$(python3 -c 'import json, pathlib; p = pathlib.Path("data/processed/practices.geojson"); print(len(json.loads(p.read_text(encoding="utf-8")).get("features", [])) if p.exists() else 0)' 2>/dev/null || echo 0)"
                       echo "Clinics in practices.geojson: ${clinic_count}"
                       if [ "${clinic_count}" -ge "${MIN_CLINICS}" ]; then
                         build_ok=1
