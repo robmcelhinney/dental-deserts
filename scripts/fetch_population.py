@@ -15,31 +15,8 @@ from urllib.request import urlopen
 OUT = Path("data/raw/population.csv")
 PRACTICES_PATH = Path("data/raw/practices.csv")
 LSOA_BOUNDARIES_PATH = Path("data/raw/lsoa_boundaries.geojson")
+SEED_PATH = Path("data/seed/population.csv")
 LSOA_CODE_RE = re.compile(r"^[EW]010\d{5}$")
-
-SEED_ROWS = [
-    {
-        "area_code": "AREA1",
-        "area_name": "Central",
-        "population_total": "26000",
-        "population_adults": "18000",
-        "population_children": "8000",
-    },
-    {
-        "area_code": "AREA2",
-        "area_name": "North",
-        "population_total": "22000",
-        "population_adults": "15000",
-        "population_children": "7000",
-    },
-    {
-        "area_code": "AREA3",
-        "area_name": "West",
-        "population_total": "18000",
-        "population_adults": "12000",
-        "population_children": "6000",
-    },
-]
 
 
 def load_existing_rows() -> list[dict[str, str]]:
@@ -49,12 +26,19 @@ def load_existing_rows() -> list[dict[str, str]]:
         return list(csv.DictReader(f))
 
 
-def looks_like_seed(rows: list[dict[str, str]]) -> bool:
-    if len(rows) != len(SEED_ROWS):
+def load_seed_rows() -> list[dict[str, str]]:
+    if not SEED_PATH.exists():
+        raise FileNotFoundError(f"Seed file not found: {SEED_PATH}")
+    with SEED_PATH.open("r", encoding="utf-8") as f:
+        return list(csv.DictReader(f))
+
+
+def looks_like_seed(rows: list[dict[str, str]], seed_rows: list[dict[str, str]]) -> bool:
+    if len(rows) != len(seed_rows):
         return False
     keys = {"area_code", "area_name", "population_total", "population_adults", "population_children"}
     return all(set(r.keys()) == keys for r in rows) and {r["area_code"] for r in rows} == {
-        r["area_code"] for r in SEED_ROWS
+        r["area_code"] for r in seed_rows
     }
 
 
@@ -213,6 +197,7 @@ def rows_look_like_lsoa(rows: list[dict[str, str]]) -> bool:
 
 
 def main() -> None:
+    seed_rows = load_seed_rows()
     existing_rows = load_existing_rows()
     full_geography = os.getenv("NOMIS_POPULATION_GEOGRAPHY", "").strip()
     if full_geography:
@@ -232,7 +217,7 @@ def main() -> None:
                 print("Nomis full-geography query returned zero rows; falling back.")
         except URLError as exc:
             print(f"Nomis full-geography fetch failed ({exc}); falling back.")
-            if existing_rows and not looks_like_seed(existing_rows):
+            if existing_rows and not looks_like_seed(existing_rows, seed_rows):
                 print(f"Keeping existing {OUT} ({len(existing_rows)} rows) because existing data is non-seed.")
                 return
 
@@ -249,18 +234,18 @@ def main() -> None:
             print("Boundary-code population query returned no usable LSOA rows; falling back.")
         except URLError as exc:
             print(f"Boundary-code population fetch failed ({exc}); falling back.")
-            if existing_rows and not looks_like_seed(existing_rows):
+            if existing_rows and not looks_like_seed(existing_rows, seed_rows):
                 print(f"Keeping existing {OUT} ({len(existing_rows)} rows) because existing data is non-seed.")
                 return
 
     lsoa_codes = load_practice_lsoa_codes()
     if not lsoa_codes:
-        if existing_rows and not looks_like_seed(existing_rows):
+        if existing_rows and not looks_like_seed(existing_rows, seed_rows):
             print(
                 f"No LSOA codes found in practices; keeping existing {OUT} ({len(existing_rows)} rows)."
             )
             return
-        write_rows(SEED_ROWS)
+        write_rows(seed_rows)
         print("No LSOA codes found in practices; wrote seed population fallback.")
         return
 
@@ -275,12 +260,12 @@ def main() -> None:
         print("Nomis population query returned zero rows; falling back to seed data.")
     except URLError as exc:
         print(f"Nomis population fetch failed ({exc}); falling back to seed data.")
-        if existing_rows and not looks_like_seed(existing_rows):
+        if existing_rows and not looks_like_seed(existing_rows, seed_rows):
             print(f"Keeping existing {OUT} ({len(existing_rows)} rows) because existing data is non-seed.")
             return
 
-    write_rows(SEED_ROWS)
-    print(f"Wrote {OUT} ({len(SEED_ROWS)} rows, source=seed)")
+    write_rows(seed_rows)
+    print(f"Wrote {OUT} ({len(seed_rows)} rows, source=seed)")
 
 
 if __name__ == "__main__":

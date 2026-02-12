@@ -12,12 +12,7 @@ from urllib.request import urlopen
 IMD_OUT = Path("data/raw/imd.csv")
 POSTCODE_OUT = Path("data/raw/postcode_lookup.csv")
 PRACTICES_PATH = Path("data/raw/practices.csv")
-
-IMD_ROWS = [
-    {"area_code": "AREA1", "imd_decile": "3"},
-    {"area_code": "AREA2", "imd_decile": "6"},
-    {"area_code": "AREA3", "imd_decile": "8"},
-]
+SEED_PATH = Path("data/seed/imd.csv")
 
 def write_csv(path: Path, rows: list[dict[str, str]], fieldnames: list[str]) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
@@ -34,10 +29,11 @@ def load_existing_imd_rows() -> list[dict[str, str]]:
         return list(csv.DictReader(f))
 
 
-def looks_like_seed_imd(rows: list[dict[str, str]]) -> bool:
-    if len(rows) != len(IMD_ROWS):
-        return False
-    return {r.get("area_code", "") for r in rows} == {r["area_code"] for r in IMD_ROWS}
+def load_seed_rows() -> list[dict[str, str]]:
+    if not SEED_PATH.exists():
+        raise FileNotFoundError(f"Seed file not found: {SEED_PATH}")
+    with SEED_PATH.open("r", encoding="utf-8") as f:
+        return list(csv.DictReader(f))
 
 
 def fetch_imd_rows() -> list[dict[str, str]]:
@@ -96,6 +92,7 @@ def build_postcode_lookup_rows() -> list[dict[str, str]]:
 
 
 def main() -> None:
+    seed_rows = load_seed_rows()
     existing_imd_rows = load_existing_imd_rows()
     try:
         imd_rows = fetch_imd_rows()
@@ -108,13 +105,13 @@ def main() -> None:
                     f"IMD source returned no rows; keeping existing {IMD_OUT} ({len(existing_imd_rows)} rows)."
                 )
             else:
-                write_csv(IMD_OUT, IMD_ROWS, ["area_code", "imd_decile"])
+                write_csv(IMD_OUT, seed_rows, ["area_code", "imd_decile"])
                 print("IMD source returned no rows and no existing file; wrote seed fallback.")
     except URLError as exc:
         if existing_imd_rows:
             print(f"IMD fetch failed ({exc}); keeping existing {IMD_OUT} ({len(existing_imd_rows)} rows).")
         else:
-            write_csv(IMD_OUT, IMD_ROWS, ["area_code", "imd_decile"])
+            write_csv(IMD_OUT, seed_rows, ["area_code", "imd_decile"])
             print(f"IMD fetch failed ({exc}) and no existing file; wrote seed fallback.")
 
     postcode_rows = build_postcode_lookup_rows()

@@ -1,0 +1,6 @@
+practice_id,practice_name,address,postcode,lat,lon,area_code
+P001,Riverbank Dental Practice,10 High Street,SW1A 1AA,,,LSOA::E01004736
+P002,Greenfield Smiles,22 Market Road,E1 6AN,,,LSOA::E01032739
+P003,Northside Dental Care,5 Orchard Lane,M1 1AE,,,LSOA::E01034129
+P004,Valley Dental Centre,44 Station Street,CF10 1EP,,,LSOA::W01002019
+P005,Harbour Family Dentistry,7 Dock View,BT1 5GS,,,LSOA::Botanic_A

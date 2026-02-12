@@ -15,54 +15,7 @@ from nhs_live import (
 
 OUT = Path("data/raw/practices.csv")
 NORMALIZED_SNAPSHOT = Path("data/raw/nhs_practices_normalized.json")
-
-SEED_ROWS = [
-    {
-        "practice_id": "P001",
-        "practice_name": "Riverbank Dental Practice",
-        "address": "10 High Street",
-        "postcode": "SW1A 1AA",
-        "lat": "",
-        "lon": "",
-        "area_code": "",
-    },
-    {
-        "practice_id": "P002",
-        "practice_name": "Greenfield Smiles",
-        "address": "22 Market Road",
-        "postcode": "E1 6AN",
-        "lat": "",
-        "lon": "",
-        "area_code": "",
-    },
-    {
-        "practice_id": "P003",
-        "practice_name": "Northside Dental Care",
-        "address": "5 Orchard Lane",
-        "postcode": "M1 1AE",
-        "lat": "",
-        "lon": "",
-        "area_code": "",
-    },
-    {
-        "practice_id": "P004",
-        "practice_name": "Valley Dental Centre",
-        "address": "44 Station Street",
-        "postcode": "CF10 1EP",
-        "lat": "",
-        "lon": "",
-        "area_code": "",
-    },
-    {
-        "practice_id": "P005",
-        "practice_name": "Harbour Family Dentistry",
-        "address": "7 Dock View",
-        "postcode": "BT1 5GS",
-        "lat": "",
-        "lon": "",
-        "area_code": "",
-    },
-]
+SEED_PATH = Path("data/seed/practices.csv")
 
 
 def write_csv(rows: list[dict[str, str]]) -> None:
@@ -91,15 +44,23 @@ def load_existing_rows() -> list[dict[str, str]]:
         return list(csv.DictReader(f))
 
 
-def looks_like_seed(rows: list[dict[str, str]]) -> bool:
-    if len(rows) != len(SEED_ROWS):
+def load_seed_rows() -> list[dict[str, str]]:
+    if not SEED_PATH.exists():
+        raise FileNotFoundError(f"Seed file not found: {SEED_PATH}")
+    with SEED_PATH.open("r", encoding="utf-8") as f:
+        return list(csv.DictReader(f))
+
+
+def looks_like_seed(rows: list[dict[str, str]], seed_rows: list[dict[str, str]]) -> bool:
+    if len(rows) != len(seed_rows):
         return False
     names = {r.get("practice_name", "").strip() for r in rows}
-    seed_names = {r["practice_name"] for r in SEED_ROWS}
+    seed_names = {r.get("practice_name", "").strip() for r in seed_rows}
     return names == seed_names
 
 
 def main() -> None:
+    seed_rows = load_seed_rows()
     use_live = bool(os.getenv("NHS_API_SUBSCRIPTION_KEY", "").strip())
     existing_rows = load_existing_rows()
 
@@ -130,15 +91,15 @@ def main() -> None:
             print(f"Live NHS fetch failed ({exc}); falling back to seed rows.")
 
         # Safety: do not wipe existing real data with 5-row seed fallback.
-        if existing_rows and not looks_like_seed(existing_rows):
+        if existing_rows and not looks_like_seed(existing_rows, seed_rows):
             print(
                 f"Keeping existing {OUT} ({len(existing_rows)} rows) because live fetch failed and existing data is non-seed."
             )
             return
 
     write_normalized_snapshot([])
-    write_csv(SEED_ROWS)
-    print(f"Wrote {OUT} ({len(SEED_ROWS)} rows, source=seed)")
+    write_csv(seed_rows)
+    print(f"Wrote {OUT} ({len(seed_rows)} rows, source=seed)")
 
 
 if __name__ == "__main__":

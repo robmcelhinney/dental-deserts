@@ -2,7 +2,7 @@
 
 ## Selected Targets
 
-- Static frontend: Cloudflare Pages (primary), GitHub Pages as fallback.
+- Static frontend: GitHub Pages via GitHub Actions workflow (`.github/workflows/deploy-gh-pages.yml`).
 - Optional thin API (future): Render.
 
 ## Current Mode

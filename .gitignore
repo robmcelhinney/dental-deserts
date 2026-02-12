@@ -8,6 +8,7 @@ __pycache__/
 data/cache/postcodes.json
 data/processed/*
 !data/processed/.gitkeep
+data/raw/*.csv
 data/raw/nhs_service_search.json
 data/raw/nhs_practices_normalized.json
 data/raw/lsoa_boundaries.geojson

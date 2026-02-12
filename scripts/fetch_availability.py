@@ -9,39 +9,7 @@ import csv
 from nhs_live import read_normalized_snapshot
 
 OUT = Path("data/raw/availability.csv")
-
-SEED_ROWS = [
-    {
-        "practice_id": "P001",
-        "accepting_adults": "yes",
-        "accepting_children": "yes",
-        "last_reported": "2026-02-01",
-    },
-    {
-        "practice_id": "P002",
-        "accepting_adults": "no",
-        "accepting_children": "yes",
-        "last_reported": "2026-02-01",
-    },
-    {
-        "practice_id": "P003",
-        "accepting_adults": "unknown",
-        "accepting_children": "unknown",
-        "last_reported": "2026-02-01",
-    },
-    {
-        "practice_id": "P004",
-        "accepting_adults": "yes",
-        "accepting_children": "no",
-        "last_reported": "2026-02-01",
-    },
-    {
-        "practice_id": "P005",
-        "accepting_adults": "no",
-        "accepting_children": "no",
-        "last_reported": "2026-02-01",
-    },
-]
+SEED_PATH = Path("data/seed/availability.csv")
 
 
 def write_csv(rows: list[dict[str, str]]) -> None:
@@ -60,7 +28,15 @@ def write_csv(rows: list[dict[str, str]]) -> None:
         writer.writerows(rows)
 
 
+def load_seed_rows() -> list[dict[str, str]]:
+    if not SEED_PATH.exists():
+        raise FileNotFoundError(f"Seed file not found: {SEED_PATH}")
+    with SEED_PATH.open("r", encoding="utf-8") as f:
+        return list(csv.DictReader(f))
+
+
 def main() -> None:
+    seed_rows = load_seed_rows()
     normalized = read_normalized_snapshot()
     rows = [
         {
@@ -78,8 +54,8 @@ def main() -> None:
         print(f"Wrote {OUT} ({len(rows)} rows, source=normalized)")
         return
 
-    write_csv(SEED_ROWS)
-    print(f"Wrote {OUT} ({len(SEED_ROWS)} rows, source=seed)")
+    write_csv(seed_rows)
+    print(f"Wrote {OUT} ({len(seed_rows)} rows, source=seed)")
 
 
 if __name__ == "__main__":

@@ -13,7 +13,8 @@ Finding an NHS dentist is difficult and often opaque. This project makes public 
 ## Repo Layout
 
 - `frontend/`: static web app (Leaflet + OSM)
-- `data/raw/`: ingested raw datasets (currently deterministic seed data)
+- `data/seed/`: committed fallback seed inputs used when live fetches fail
+- `data/raw/`: generated fetch artifacts (git-ignored)
 - `data/cache/`: postcode geocoding cache
 - `data/processed/`: frontend-ready artifacts
 - `scripts/`: reproducible data pipeline scripts
@@ -31,6 +32,22 @@ This command rebuilds:
 - `data/processed/areas.geojson`
 - `data/processed/area_metrics.json`
 - `data/processed/qa_report.json`
+
+It refreshes local fetch artifacts in `data/raw/` (for example
+`practices.csv`, `availability.csv`, `population.csv`, and `imd.csv`), which
+are intentionally git-ignored to avoid commit churn. Seed fallback inputs are
+kept in `data/seed/`.
+
+## Deploy To GitHub Pages
+
+This repo includes a GitHub Actions workflow at
+`.github/workflows/deploy-gh-pages.yml` that deploys on pushes to `main`.
+
+The deploy workflow:
+
+- Runs `make build-data`.
+- Publishes `frontend/` and `data/processed/` to Pages.
+- Creates a root redirect from `/` to `/frontend/`.
 
 ## Use Live NHS Data
 
