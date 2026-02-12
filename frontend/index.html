@@ -1,0 +1,175 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>NHS Dental Desert</title>
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+        <link
+            href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap"
+            rel="stylesheet"
+        />
+        <link
+            rel="stylesheet"
+            href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+            integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
+            crossorigin=""
+        />
+        <link
+            rel="stylesheet"
+            href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css"
+        />
+        <link
+            rel="stylesheet"
+            href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.Default.css"
+        />
+        <link rel="stylesheet" href="styles.css" />
+    </head>
+    <body>
+        <main>
+            <section class="controls">
+                <div class="sidebar-brand">
+                    <h1>NHS Dental Desert</h1>
+                    <p class="note">
+                        Find NHS dental access near any address in England.
+                    </p>
+                    <p class="note">
+                        Wales, Scotland, and Northern Ireland coverage is
+                        unavailable.
+                    </p>
+                </div>
+
+                <div class="control-group">
+                    <p class="group-title">Search Mode</p>
+                    <div
+                        class="mode-toggle"
+                        role="tablist"
+                        aria-label="Search mode"
+                    >
+                        <button
+                            id="search-mode-radius"
+                            class="mode-btn active"
+                            type="button"
+                        >
+                            Radius
+                        </button>
+                        <button
+                            id="search-mode-viewport"
+                            class="mode-btn"
+                            type="button"
+                        >
+                            Viewport
+                        </button>
+                    </div>
+                    <button id="reset-view" type="button">Reset view</button>
+                </div>
+
+                <div class="control-group">
+                    <p class="group-title">Search</p>
+                    <div id="postcode-controls">
+                        <label for="postcode">Address or postcode</label>
+                        <input
+                            id="postcode"
+                            type="text"
+                            placeholder="e.g. SW12 9QR or 10 Downing Street"
+                        />
+                    </div>
+                    <div id="radius-controls">
+                        <label for="radius">Radius</label>
+                        <input
+                            id="radius"
+                            type="range"
+                            min="0.5"
+                            max="50"
+                            step="0.5"
+                            value="5"
+                        />
+                        <p id="radius-value" class="note">5.0 km</p>
+                    </div>
+                    <p id="viewport-hint" class="note is-empty">
+                        Pan and zoom the map. Clinics appear only when you zoom
+                        in sufficiently.
+                    </p>
+                    <label for="mode">View</label>
+                    <select id="mode">
+                        <option value="all" selected>All practices</option>
+                        <option value="adult">Accepting NHS adults</option>
+                        <option value="children">Accepting NHS children</option>
+                    </select>
+                    <button id="search">Search</button>
+                    <p id="status" role="status"></p>
+                    <p id="desert-banner" role="status"></p>
+                    <div id="compare-card" aria-live="polite"></div>
+                </div>
+
+                <div class="control-group">
+                    <p class="group-title">Map Overlay</p>
+                    <label for="area-metric">Area metric</label>
+                    <select id="area-metric">
+                        <option value="pressure" selected>
+                            Access pressure (practices per 10k)
+                        </option>
+                        <option value="adults_density">
+                            Accepting NHS adults density
+                        </option>
+                        <option value="deprivation">
+                            Deprivation decile (IMD)
+                        </option>
+                        <option value="desert_risk">Dental desert risk</option>
+                    </select>
+                    <label class="inline-control" for="area-overlay">
+                        <input id="area-overlay" type="checkbox" checked />
+                        Show area overlay (MSOA, partial coverage)
+                    </label>
+                    <p id="coverage-banner" class="note is-empty" role="status">
+                        Area overlay coverage is currently England only.
+                    </p>
+                    <div id="area-coloring-controls" class="is-empty">
+                        <label for="area-coloring">Coloring</label>
+                        <select id="area-coloring">
+                            <option value="contrast" selected>
+                                High contrast (recommended)
+                            </option>
+                            <option value="off">Off</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="control-group results-group">
+                    <p id="results-title" class="group-title">Nearest Practices</p>
+                    <p id="results-empty" class="note">
+                        Search an address or postcode to list nearby practices.
+                    </p>
+                    <ul id="results"></ul>
+                    <button id="load-more" type="button">Load more</button>
+                </div>
+
+                <div class="how-to">
+                    <h2>How to use</h2>
+                    <ol>
+                        <li>Search a postcode.</li>
+                        <li>Choose radius and NHS acceptance mode.</li>
+                        <li>
+                            Toggle overlays and compare local area percentile.
+                        </li>
+                    </ol>
+                    <p class="note">
+                        Sources:
+                        <a href="../docs/sources.md">data provenance</a>
+                    </p>
+                    <p id="data-snapshot" class="note">Data snapshot: unknown</p>
+                </div>
+            </section>
+            <section id="map" aria-label="Map"></section>
+        </main>
+
+        <script
+            src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+            integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
+            crossorigin=""
+        ></script>
+        <script src="https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js"></script>
+        <script src="app.js"></script>
+    </body>
+</html>

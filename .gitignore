@@ -1,0 +1,14 @@
+__pycache__/
+*.pyc
+.venv/
+.DS_Store
+.env
+.env.*
+!.env.example
+data/cache/postcodes.json
+data/processed/*
+!data/processed/.gitkeep
+data/raw/nhs_service_search.json
+data/raw/nhs_practices_normalized.json
+data/raw/lsoa_boundaries.geojson
+data/cache/postcode_lsoa.json
