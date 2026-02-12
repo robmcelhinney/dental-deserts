@@ -7,6 +7,15 @@ const PREFERENCE_KEYS = {
     coloring: "ui_pref_area_coloring",
     radius: "ui_pref_radius_km",
 }
+const APP_BASE_URL = new URL(
+    ".",
+    (document.currentScript && document.currentScript.src) ||
+        window.location.href,
+)
+
+function dataUrl(path) {
+    return new URL(`data/processed/${path}`, APP_BASE_URL).toString()
+}
 
 const map = L.map("map").setView(DEFAULT_MAP_CENTER, DEFAULT_MAP_ZOOM)
 L.tileLayer("https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png", {
@@ -339,7 +348,7 @@ function compareCardFooterHtml() {
 
 async function loadSnapshotDate() {
     try {
-        const resp = await fetch("data/processed/qa_report.json")
+        const resp = await fetch(dataUrl("qa_report.json"))
         if (!resp.ok) {
             return
         }
@@ -1465,7 +1474,7 @@ function updateCoverageBanner() {
 }
 
 async function loadPractices() {
-    const resp = await fetch("data/processed/practices.geojson")
+    const resp = await fetch(dataUrl("practices.geojson"))
     const geo = await resp.json()
     practices = geo.features.map((f) => ({
         ...f.properties,
@@ -1476,8 +1485,8 @@ async function loadPractices() {
 
 async function loadAreaData() {
     const [areasResp, metricsResp] = await Promise.all([
-        fetch("data/processed/areas.geojson"),
-        fetch("data/processed/area_metrics.json"),
+        fetch(dataUrl("areas.geojson")),
+        fetch(dataUrl("area_metrics.json")),
     ])
     if (!areasResp.ok || !metricsResp.ok) {
         throw new Error("Failed to load area overlay data.")
