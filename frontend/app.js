@@ -27,6 +27,27 @@ function dataUrl(path) {
     return new URL(`data/processed/${path}`, APP_BASE_URL).toString()
 }
 
+function dataUrlFallback(path) {
+    return new URL(`../data/processed/${path}`, APP_BASE_URL).toString()
+}
+
+async function fetchProcessed(path) {
+    const primary = dataUrl(path)
+    const fallback = dataUrlFallback(path)
+    const tried = []
+    for (const url of [primary, fallback]) {
+        if (tried.includes(url)) {
+            continue
+        }
+        tried.push(url)
+        const resp = await fetch(url)
+        if (resp.ok) {
+            return resp
+        }
+    }
+    throw new Error(`Failed to load processed data: ${path}`)
+}
+
 const map = L.map("map").setView(DEFAULT_MAP_CENTER, DEFAULT_MAP_ZOOM)
 L.tileLayer("https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png", {
     maxZoom: 18,
@@ -358,10 +379,7 @@ function compareCardFooterHtml() {
 
 async function loadSnapshotDate() {
     try {
-        const resp = await fetch(dataUrl("qa_report.json"))
-        if (!resp.ok) {
-            return
-        }
+        const resp = await fetchProcessed("qa_report.json")
         const payload = await resp.json()
         dataSnapshotLabel = formatSnapshotDate(payload.generated_at_utc)
     } catch (_err) {
@@ -1484,7 +1502,7 @@ function updateCoverageBanner() {
 }
 
 async function loadPractices() {
-    const resp = await fetch(dataUrl("practices.geojson"))
+    const resp = await fetchProcessed("practices.geojson")
     const geo = await resp.json()
     practices = geo.features.map((f) => ({
         ...f.properties,
@@ -1495,12 +1513,9 @@ async function loadPractices() {
 
 async function loadAreaData() {
     const [areasResp, metricsResp] = await Promise.all([
-        fetch(dataUrl("areas.geojson")),
-        fetch(dataUrl("area_metrics.json")),
+        fetchProcessed("areas.geojson"),
+        fetchProcessed("area_metrics.json"),
     ])
-    if (!areasResp.ok || !metricsResp.ok) {
-        throw new Error("Failed to load area overlay data.")
-    }
     areasGeojson = await areasResp.json()
     areaMetrics = await metricsResp.json()
     areaFeatureIndex = (areasGeojson.features || [])

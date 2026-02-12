@@ -20,6 +20,7 @@ CACHE_PATH = Path("data/cache/postcodes.json")
 LSOA_CACHE_PATH = Path("data/cache/postcode_lsoa.json")
 
 POSTCODE_RE = re.compile(r"^[A-Z]{1,2}[0-9][A-Z0-9]?[0-9][A-Z]{2}$")
+LSOA_CODE_RE = re.compile(r"^[EW]010\d{5}$")
 
 
 @dataclass
@@ -39,6 +40,21 @@ class Practice:
 
 def normalize_postcode(postcode: str) -> str:
     return re.sub(r"\s+", "", postcode.strip().upper())
+
+
+def canonical_lsoa_area_code(value: str | None) -> str | None:
+    if not value:
+        return None
+    text = value.strip()
+    if not text:
+        return None
+    if text.startswith("LSOA::"):
+        code = text.replace("LSOA::", "", 1).strip()
+    else:
+        code = text
+    if LSOA_CODE_RE.match(code):
+        return f"LSOA::{code}"
+    return None
 
 
 def haversine_km(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
@@ -305,11 +321,12 @@ def build_practices() -> tuple[list[Practice], dict[str, int], list[str]]:
         src_lat = row.get("lat", "").strip()
         src_lon = row.get("lon", "").strip()
         src_area = row.get("area_code", "").strip()
+        src_area_canonical = canonical_lsoa_area_code(src_area)
         if src_lat and src_lon:
             try:
                 lat = float(src_lat)
                 lon = float(src_lon)
-                area_code = src_area or None
+                area_code = src_area_canonical or (src_area or None)
                 geocode_failed = False
                 cache[postcode_norm] = {
                     "lat": f"{lat}",
@@ -328,7 +345,9 @@ def build_practices() -> tuple[list[Practice], dict[str, int], list[str]]:
         if geocode and geocode_failed:
             lat = float(geocode["lat"])
             lon = float(geocode["lon"])
-            area_code = geocode.get("area_code")
+            geocode_area = str(geocode.get("area_code") or "").strip()
+            geocode_area_canonical = canonical_lsoa_area_code(geocode_area)
+            area_code = src_area_canonical or geocode_area_canonical or (src_area or None)
             geocode_failed = False
             cache[postcode_norm] = {
                 "lat": f"{lat}",
