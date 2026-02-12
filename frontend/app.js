@@ -7,11 +7,21 @@ const PREFERENCE_KEYS = {
     coloring: "ui_pref_area_coloring",
     radius: "ui_pref_radius_km",
 }
-const APP_BASE_URL = new URL(
-    ".",
-    (document.currentScript && document.currentScript.src) ||
-        window.location.href,
-)
+function appBaseUrl() {
+    const { origin, pathname } = window.location
+    if (pathname.endsWith("/")) {
+        return new URL(pathname, origin)
+    }
+    const tail = pathname.split("/").pop() || ""
+    if (tail.includes(".")) {
+        const slash = pathname.lastIndexOf("/")
+        const dir = slash >= 0 ? pathname.slice(0, slash + 1) : "/"
+        return new URL(dir, origin)
+    }
+    return new URL(`${pathname}/`, origin)
+}
+
+const APP_BASE_URL = appBaseUrl()
 
 function dataUrl(path) {
     return new URL(`data/processed/${path}`, APP_BASE_URL).toString()
