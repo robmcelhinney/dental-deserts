@@ -4,10 +4,6 @@ A postcode-driven web app to visualize NHS dental access near a user, including 
 
 Finding an NHS dentist is difficult and often opaque. This project makes public data easier to explore, while explicitly showing uncertainty: reported acceptance can be out of date, and acceptance does not imply immediate appointment availability.
 
-## Scope
-
-- `Current`: postcode/address search, viewport + radius modes, NHS adult/children/no-acceptance filters, nearest-distance insights, choropleth overlays, MSOA benchmark card, shareable URLs, and GitHub-backed feedback links.
-
 ## Current App Highlights
 
 - Viewport mode is the default search mode.
