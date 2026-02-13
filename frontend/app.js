@@ -40,7 +40,7 @@ async function fetchProcessed(path) {
             continue
         }
         tried.push(url)
-        const resp = await fetch(url)
+        const resp = await fetch(url, { cache: "no-store" })
         if (resp.ok) {
             return resp
         }
@@ -179,6 +179,20 @@ areaInfoControl.onAdd = function onAdd() {
     this.update()
     return this._div
 }
+
+function numericMetricOrNull(value) {
+    if (value === null || value === undefined || value === "") {
+        return null
+    }
+    const n = Number(value)
+    return Number.isFinite(n) ? n : null
+}
+
+function formatMetricText(data, key, formatter) {
+    const value = numericMetricOrNull(data[key])
+    return value === null ? "unknown" : formatter(value)
+}
+
 areaInfoControl.update = function update(areaCode = null) {
     if (!this._div) {
         return
@@ -192,14 +206,31 @@ areaInfoControl.update = function update(areaCode = null) {
 
     const metric = areaMetricConfig[areaMetricSelect.value]
     const data = areaMetrics[areaCode]
-    const value = Number(data[metric.key])
-    const valueText = Number.isFinite(value) ? metric.format(value) : "unknown"
+    const valueText = formatMetricText(data, metric.key, metric.format)
+    const practicesPer10kText = formatMetricText(
+        data,
+        "practices_per_10k",
+        (v) => v.toFixed(2),
+    )
+    const imdText = formatMetricText(data, "imd_decile", (v) =>
+        String(Math.round(v)),
+    )
+    const extraRows = []
+    if (metric.key !== "practices_per_10k") {
+        extraRows.push(
+            `<div class="area-info-row"><span>Practices per 10k</span><strong>${practicesPer10kText}</strong></div>`,
+        )
+    }
+    if (metric.key !== "imd_decile") {
+        extraRows.push(
+            `<div class="area-info-row"><span>IMD decile</span><strong>${imdText}</strong></div>`,
+        )
+    }
 
     this._div.innerHTML =
         `<div class="area-info-title">${data.area_name}</div>` +
         `<div class="area-info-row"><span>${metric.label}</span><strong>${valueText}</strong></div>` +
-        `<div class="area-info-row"><span>Practices per 10k</span><strong>${Number(data.practices_per_10k).toFixed(2)}</strong></div>` +
-        `<div class="area-info-row"><span>IMD decile</span><strong>${data.imd_decile}</strong></div>`
+        extraRows.join("")
 }
 
 const legendControl = L.control({ position: "bottomright" })
@@ -897,8 +928,7 @@ function getAreaMetricValue(areaCode) {
     if (!data) {
         return null
     }
-    const value = Number(data[metric.key])
-    return Number.isFinite(value) ? value : null
+    return numericMetricOrNull(data[metric.key])
 }
 
 function pointInRing(lat, lon, ring) {
@@ -1367,7 +1397,7 @@ function updateCompareCard(searchLat, searchLon) {
 
     const metric = areaMetricConfig[areaMetricSelect.value]
     const localArea = areaMetrics[areaCode]
-    const localValue = Number(localArea[metric.key])
+    const localValue = numericMetricOrNull(localArea[metric.key])
     const compareHeader =
         `<div class="compare-title">MSOA-level benchmark</div>` +
         `<div class="compare-subtitle">Area-based context for this map point (not your radius search). Blue outline shows the local boundary used for this point.</div>`
@@ -1393,8 +1423,8 @@ function updateCompareCard(searchLat, searchLon) {
         .map((code) => areaMetrics[code])
         .filter((area) => hasValidDenominator(area, metric.key))
     const allValues = comparableAreas
-        .map((area) => Number(area[metric.key]))
-        .filter((v) => Number.isFinite(v))
+        .map((area) => numericMetricOrNull(area[metric.key]))
+        .filter((v) => v !== null)
 
     if (!hasValidDenominator(localArea, metric.key) || allValues.length < 30) {
         const practiceCounts = Object.keys(areaMetrics)
@@ -1854,9 +1884,15 @@ async function loadAreaData() {
         .filter((entry) => entry)
     for (const areaCode of Object.keys(areaMetrics)) {
         const area = areaMetrics[areaCode]
-        const pressure = Number(area.practices_per_10k) || 0
-        const adultsDensity = Number(area.accepting_adults_per_10k_adults) || 0
-        const imdDecile = Number(area.imd_decile) || 10
+        const pressure = numericMetricOrNull(area.practices_per_10k)
+        const adultsDensity = numericMetricOrNull(
+            area.accepting_adults_per_10k_adults,
+        )
+        const imdDecile = numericMetricOrNull(area.imd_decile)
+        if (pressure === null || adultsDensity === null || imdDecile === null) {
+            area.desert_risk_score = null
+            continue
+        }
         const pressureGap = Math.max(0, 6 - pressure)
         const adultsGap = Math.max(0, 4 - adultsDensity)
         const deprivationFactor = Math.max(0, 11 - imdDecile) / 10

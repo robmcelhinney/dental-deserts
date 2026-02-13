@@ -528,7 +528,7 @@ def write_areas_and_metrics(practices: list[Practice]) -> dict[str, dict[str, fl
         avg_lon = sum(lon for _, lon in coords) / len(coords)
         practice_centroids[area_code] = (avg_lat, avg_lon)
 
-    metrics: dict[str, dict[str, float | int | str]] = {}
+    metrics: dict[str, dict[str, float | int | str | None]] = {}
     for msoa_key, pop in msoa_population.items():
         area_name = msoa_names_by_key.get(msoa_key, msoa_key.replace("MSOA::", ""))
         practice_count = counts[msoa_key]["total"]
@@ -538,9 +538,15 @@ def write_areas_and_metrics(practices: list[Practice]) -> dict[str, dict[str, fl
         pop_total = int(pop["population_total"])
         pop_adults = int(pop["population_adults"])
         pop_children = int(pop["population_children"])
-        practices_per_10k = round(practice_count / pop_total * 10000, 4) if pop_total else 0.0
-        adults_per_10k = round(adults_yes / pop_adults * 10000, 4) if pop_adults else 0.0
-        children_per_10k = round(children_yes / pop_children * 10000, 4) if pop_children else 0.0
+        practices_per_10k = (
+            round(practice_count / pop_total * 10000, 4) if pop_total else None
+        )
+        adults_per_10k = (
+            round(adults_yes / pop_adults * 10000, 4) if pop_adults else None
+        )
+        children_per_10k = (
+            round(children_yes / pop_children * 10000, 4) if pop_children else None
+        )
 
         imd_weight = msoa_imd_weighted[msoa_key]["weight"]
         if imd_weight > 0:
@@ -579,9 +585,9 @@ def write_areas_and_metrics(practices: list[Practice]) -> dict[str, dict[str, fl
             "practice_count": area_counts["total"],
             "accepting_adults_count": area_counts["adults_yes"],
             "accepting_children_count": area_counts["children_yes"],
-            "practices_per_10k": 0.0,
-            "accepting_adults_per_10k_adults": 0.0,
-            "accepting_children_per_10k_children": 0.0,
+            "practices_per_10k": None,
+            "accepting_adults_per_10k_adults": None,
+            "accepting_children_per_10k_children": None,
             "imd_decile": "unknown",
         }
 
@@ -606,9 +612,9 @@ def write_areas_and_metrics(practices: list[Practice]) -> dict[str, dict[str, fl
             "practice_count": 0,
             "accepting_adults_count": 0,
             "accepting_children_count": 0,
-            "practices_per_10k": 0.0,
-            "accepting_adults_per_10k_adults": 0.0,
-            "accepting_children_per_10k_children": 0.0,
+            "practices_per_10k": None,
+            "accepting_adults_per_10k_adults": None,
+            "accepting_children_per_10k_children": None,
             "imd_decile": "unknown",
         }
 
