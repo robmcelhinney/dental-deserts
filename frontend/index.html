@@ -43,23 +43,66 @@
             rel="stylesheet"
             href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.Default.css"
         />
-        <link rel="stylesheet" href="styles.css" />
+        <link rel="stylesheet" href="styles.css?v=20260213b" />
     </head>
     <body>
         <main>
-            <section class="controls">
-                <div class="sidebar-brand">
-                    <h1>NHS Dental Desert</h1>
-                    <p class="note">
-                        Find NHS dental access near any address in England.
-                    </p>
-                    <p class="note">
-                        Wales, Scotland, and Northern Ireland coverage is
-                        unavailable.
-                    </p>
+            <section class="controls" id="mobile-controls">
+                <div
+                    class="mobile-controls-tabs"
+                    role="tablist"
+                    aria-label="Mobile options"
+                >
+                    <button
+                        class="mobile-tab active"
+                        type="button"
+                        data-mobile-panel="search"
+                        role="tab"
+                        aria-selected="true"
+                    >
+                        Search
+                    </button>
+                    <button
+                        class="mobile-tab"
+                        type="button"
+                        data-mobile-panel="filters"
+                        role="tab"
+                        aria-selected="false"
+                    >
+                        Filters
+                    </button>
+                    <button
+                        class="mobile-tab"
+                        type="button"
+                        data-mobile-panel="results"
+                        role="tab"
+                        aria-selected="false"
+                    >
+                        Results
+                    </button>
+                    <button
+                        class="mobile-tab"
+                        type="button"
+                        data-mobile-panel="map"
+                        role="tab"
+                        aria-selected="false"
+                    >
+                        Map ▼
+                    </button>
                 </div>
+                <div class="controls-body">
+                    <div class="sidebar-brand" data-mobile-section="search">
+                        <h1>NHS Dental Desert</h1>
+                        <p class="note">
+                            Find NHS dental access near any address in England.
+                        </p>
+                        <p class="note">
+                            Wales, Scotland, and Northern Ireland coverage is
+                            unavailable.
+                        </p>
+                    </div>
 
-                <div class="control-group">
+                    <div class="control-group" data-mobile-section="search">
                     <p class="group-title">Search Mode</p>
                     <div
                         class="mode-toggle"
@@ -82,9 +125,9 @@
                         </button>
                     </div>
                     <button id="reset-view" type="button">Reset view</button>
-                </div>
+                    </div>
 
-                <div class="control-group">
+                    <div class="control-group" data-mobile-section="search">
                     <p class="group-title">Search</p>
                     <div id="postcode-controls">
                         <label for="postcode">Address or postcode</label>
@@ -143,9 +186,9 @@
                     <div id="insight-card" class="insight-card is-empty"></div>
                     <p id="desert-banner" role="status"></p>
                     <div id="compare-card" aria-live="polite"></div>
-                </div>
+                    </div>
 
-                <div class="control-group">
+                    <div class="control-group" data-mobile-section="filters">
                     <p class="group-title">Map Overlay</p>
                     <label for="area-metric">Area metric</label>
                     <select id="area-metric">
@@ -207,9 +250,13 @@
                             </p>
                         </div>
                     </details>
-                </div>
+                    </div>
 
-                <div class="control-group results-group" id="results-group">
+                    <div
+                        class="control-group results-group"
+                        id="results-group"
+                        data-mobile-section="results"
+                    >
                     <p id="results-title" class="group-title">
                         Nearest Practices
                     </p>
@@ -218,50 +265,55 @@
                     </p>
                     <ul id="results"></ul>
                     <button id="load-more" type="button">Load more</button>
-                </div>
-
-                <details class="how-to about-panel">
-                    <summary>About and methodology</summary>
-                    <div class="about-body">
-                        <h2>How to use</h2>
-                        <ol>
-                            <li>Search a postcode.</li>
-                            <li>Choose radius and NHS acceptance mode.</li>
-                            <li>
-                                Toggle overlays and compare local area
-                                percentile.
-                            </li>
-                        </ol>
-                        <h2>Methodology</h2>
-                        <p class="note">
-                            “Accepting NHS adults/children” is self-reported
-                            and can be stale; it does not guarantee appointment
-                            availability.
-                        </p>
-                        <p class="note">
-                            Access pressure = practices per 10,000 residents.
-                            Dental desert risk combines practice density, adult
-                            acceptance density, and deprivation.
-                        </p>
-                        <p class="note">
-                            Sources:
-                            <a
-                                href="https://github.com/robmcelhinney/dental-deserts/blob/main/docs/sources.md"
-                                >data provenance</a
-                            >
-                        </p>
-                        <p class="note">
-                            <a
-                                href="https://github.com/robmcelhinney/dental-deserts/issues/new?template=report-incorrect-info.md"
-                            >
-                                Report incorrect info
-                            </a>
-                        </p>
-                        <p id="data-snapshot" class="note">
-                            Data snapshot: unknown
-                        </p>
                     </div>
-                </details>
+
+                    <details
+                        class="how-to about-panel"
+                        data-mobile-section="filters"
+                    >
+                        <summary>About and methodology</summary>
+                        <div class="about-body">
+                            <h2>How to use</h2>
+                            <ol>
+                                <li>Search a postcode.</li>
+                                <li>Choose radius and NHS acceptance mode.</li>
+                                <li>
+                                    Toggle overlays and compare local area
+                                    percentile.
+                                </li>
+                            </ol>
+                            <h2>Methodology</h2>
+                            <p class="note">
+                                “Accepting NHS adults/children” is self-reported
+                                and can be stale; it does not guarantee
+                                appointment availability.
+                            </p>
+                            <p class="note">
+                                Access pressure = practices per 10,000
+                                residents. Dental desert risk combines practice
+                                density, adult acceptance density, and
+                                deprivation.
+                            </p>
+                            <p class="note">
+                                Sources:
+                                <a
+                                    href="https://github.com/robmcelhinney/dental-deserts/blob/main/docs/sources.md"
+                                    >data provenance</a
+                                >
+                            </p>
+                            <p class="note">
+                                <a
+                                    href="https://github.com/robmcelhinney/dental-deserts/issues/new?template=report-incorrect-info.md"
+                                >
+                                    Report incorrect info
+                                </a>
+                            </p>
+                            <p id="data-snapshot" class="note">
+                                Data snapshot: unknown
+                            </p>
+                        </div>
+                    </details>
+                </div>
             </section>
             <div class="map-shell">
                 <section id="map" aria-label="Map"></section>
@@ -281,6 +333,6 @@
             crossorigin=""
         ></script>
         <script src="https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js"></script>
-        <script src="app.js?v=20260213a"></script>
+        <script src="app.js?v=20260213b"></script>
     </body>
 </html>

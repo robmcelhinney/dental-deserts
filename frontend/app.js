@@ -88,6 +88,10 @@ const overlayExplainerEl = document.getElementById("overlay-explainer")
 const viewportZoomOverlayEl = document.getElementById("viewport-zoom-overlay")
 const coverageMoreEl = document.getElementById("coverage-more")
 const coverageMoreTextEl = document.getElementById("coverage-more-text")
+const mobileControlsEl = document.getElementById("mobile-controls")
+const mobileTabButtons = Array.from(
+    document.querySelectorAll(".mobile-tab[data-mobile-panel]"),
+)
 
 const areaMetricConfig = {
     pressure: {
@@ -150,6 +154,7 @@ const AREA_COLOR_SCHEMES = {
 const FEEDBACK_BASE_URL =
     "https://github.com/robmcelhinney/dental-deserts/issues/new"
 const FEEDBACK_TEMPLATE = "report-incorrect-info.md"
+const MOBILE_LAYOUT_BREAKPOINT = 980
 
 let areasGeojson = null
 let areaMetrics = {}
@@ -165,6 +170,8 @@ let dataSnapshotLabel = "unknown"
 let startupQuery = null
 let hasUserInteracted = false
 let initializing = true
+let mobilePanel = "search"
+let mobileCollapsed = false
 
 const ENGLAND_WALES_BOUNDS = {
     minLat: 49.8,
@@ -378,6 +385,56 @@ function modeFromUrlValue(value) {
         return "children"
     }
     return "all"
+}
+
+function isMobileLayout() {
+    return window.innerWidth <= MOBILE_LAYOUT_BREAKPOINT
+}
+
+function syncMobileControls() {
+    if (!mobileControlsEl || mobileTabButtons.length === 0) {
+        return
+    }
+    mobileControlsEl.dataset.mobilePanel = mobilePanel
+    mobileControlsEl.classList.toggle("mobile-collapsed", mobileCollapsed)
+    mobileTabButtons.forEach((button) => {
+        const panel = button.dataset.mobilePanel || ""
+        const active =
+            (mobileCollapsed && panel === "map") ||
+            (!mobileCollapsed && panel === mobilePanel)
+        button.classList.toggle("active", active)
+        button.setAttribute("aria-selected", active ? "true" : "false")
+    })
+    if (isMobileLayout()) {
+        window.setTimeout(() => {
+            map.invalidateSize()
+        }, 180)
+    }
+}
+
+function initMobileControls() {
+    if (!mobileControlsEl || mobileTabButtons.length === 0) {
+        return
+    }
+    mobileTabButtons.forEach((button) => {
+        button.addEventListener("click", () => {
+            const panel = button.dataset.mobilePanel || "search"
+            if (panel === "map") {
+                mobileCollapsed = true
+            } else {
+                mobilePanel = panel
+                mobileCollapsed = false
+            }
+            syncMobileControls()
+        })
+    })
+    window.addEventListener("resize", () => {
+        if (!isMobileLayout()) {
+            mobileCollapsed = false
+        }
+        syncMobileControls()
+    })
+    syncMobileControls()
 }
 
 function urlValueForOverlay() {
@@ -2371,6 +2428,7 @@ map.on("moveend", () => {
     updateUrlState()
 })
 ;(async () => {
+    initMobileControls()
     restoreUiPreferences()
     parseStartupQuery()
     await Promise.all([loadPractices(), loadSnapshotDate()])
