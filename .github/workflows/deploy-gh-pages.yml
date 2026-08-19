@@ -3,10 +3,12 @@ name: Deploy to GitHub Pages
 on:
     push:
         branches: ["main"]
+    schedule:
+        - cron: "17 4 * * 1"
     workflow_dispatch:
 
 permissions:
-    contents: read
+    contents: write
     pages: write
     id-token: write
 
@@ -30,6 +32,7 @@ jobs:
                   python-version: "3.11"
 
             - name: Refresh processed data (best effort)
+              id: refresh
               env:
                   NHS_API_SUBSCRIPTION_KEY: ${{ secrets.NHS_API_SUBSCRIPTION_KEY }}
               run: |
@@ -51,6 +54,7 @@ jobs:
                   for attempt in $(seq 1 "${MAX_ATTEMPTS}"); do
                     echo "NHS refresh attempt ${attempt}/${MAX_ATTEMPTS}"
                     if python3 scripts/fetch_practices.py \
+                      && python3 -c 'import json; rows = json.load(open("data/raw/nhs_practices_normalized.json")); assert rows, "NHS API returned no normalized practices"' \
                       && python3 scripts/fetch_availability.py \
                       && cp -f data/seed/population.csv data/raw/population.csv \
                       && cp -f data/seed/imd.csv data/raw/imd.csv \
@@ -73,8 +77,19 @@ jobs:
                     cp -R "${backup_dir}/." data/processed/
                     echo "::warning::NHS refresh failed after retries; restored committed data/processed snapshot."
                   else
+                    echo "refreshed=true" >> "${GITHUB_OUTPUT}"
                     echo "NHS refresh succeeded; deploying refreshed data/processed snapshot."
                   fi
+
+            - name: Persist verified data snapshot
+              if: steps.refresh.outputs.refreshed == 'true'
+              run: |
+                  set -euo pipefail
+                  git config user.name "github-actions[bot]"
+                  git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+                  git add data/processed
+                  git diff --cached --quiet || git commit -m "data: refresh NHS snapshot"
+                  git push
 
             - name: Validate processed snapshot for deploy
               run: |

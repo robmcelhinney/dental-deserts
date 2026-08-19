@@ -44,12 +44,14 @@ kept in `data/seed/`.
 ## Deploy To GitHub Pages
 
 This repo includes a GitHub Actions workflow at
-`.github/workflows/deploy-gh-pages.yml` that deploys on pushes to `main`.
+`.github/workflows/deploy-gh-pages.yml` that deploys on pushes to `main` and
+refreshes every Monday at 04:17 UTC.
 
 The deploy workflow:
 
 - Validates that committed `data/processed/` artifacts are present.
 - If `NHS_API_SUBSCRIPTION_KEY` is available, it attempts a best-effort NHS refresh of practice/availability data and rebuilds `data/processed/` (with retries), while non-NHS denominator inputs remain fixed/seed-backed in CI.
+- A successful, non-empty NHS refresh is committed as the new `data/processed/` snapshot.
 - On refresh failure, it restores the committed `data/processed/` snapshot and still deploys.
 - Publishes `frontend/` at the site root (`/`) and includes `data/processed/`.
 
