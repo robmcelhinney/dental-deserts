@@ -1,5 +1,5 @@
 const DEFAULT_MAP_CENTER = [52.5, -1.5]
-const DEFAULT_MAP_ZOOM = 7
+const DEFAULT_MAP_ZOOM = 9
 const PREFERENCE_KEYS = {
     mode: "ui_pref_mode",
     metric: "ui_pref_area_metric",
@@ -2090,6 +2090,21 @@ function recomputeAndRenderResults() {
         rankedResults = buildViewportResults()
     } else {
         if (!lastSearchPoint) {
+            rankedResults = []
+            visibleResultCount = 25
+            activePracticeId = null
+            lastSearchContext = ""
+            renderResults()
+            renderMarkers(rankedResults)
+            resultsEmptyEl.textContent =
+                "Enter an address or use your location to find nearby practices."
+            statusEl.textContent = "Enter an address or use your location."
+            statusEl.classList.remove("is-empty")
+            updateDentalDesertBanner()
+            updateCompareCard(null, null)
+            updateRadiusCircle()
+            updateInsightCard()
+            updateUrlState()
             return
         }
         rankedResults = buildRankedResults(
@@ -2143,6 +2158,7 @@ function runSearchFromPoint(lat, lon, contextLabel, keepCurrentZoom = false) {
 }
 
 function setSearchMode(nextMode, userInitiated = true) {
+    const modeChanged = searchMode !== nextMode
     if (userInitiated) {
         markUserInteracted()
     }
@@ -2164,11 +2180,19 @@ function setSearchMode(nextMode, userInitiated = true) {
             userMarker = null
         }
         clearSelectedAreaOutline()
+        lastSearchPoint = null
+        lastSearchContext = ""
         statusEl.textContent = `Viewport mode enabled. Zoom in to at least ${VIEWPORT_MIN_ZOOM} to show clinics.`
         statusEl.classList.remove("is-empty")
         if (userInitiated || hasUserInteracted) {
             recomputeAndRenderResults()
         }
+    } else {
+        if (modeChanged) {
+            lastSearchPoint = null
+            lastSearchContext = ""
+        }
+        recomputeAndRenderResults()
     }
     updateRadiusCircle()
     updateViewportZoomOverlay()
@@ -2310,7 +2334,7 @@ function useCurrentLocation() {
             } else {
                 map.setView(
                     [lat, lon],
-                    Math.max(map.getZoom(), VIEWPORT_MIN_ZOOM),
+                    11,
                 )
                 recomputeAndRenderResults()
             }
