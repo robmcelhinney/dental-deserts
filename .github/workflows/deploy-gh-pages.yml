@@ -5,6 +5,7 @@ on:
         branches: ["main"]
     schedule:
         - cron: "17 4 * * 1"
+        - cron: "17 3 1 * *"
     workflow_dispatch:
 
 permissions:
@@ -35,6 +36,7 @@ jobs:
               id: refresh
               env:
                   NHS_API_SUBSCRIPTION_KEY: ${{ secrets.NHS_API_SUBSCRIPTION_KEY }}
+                  REFRESH_REFERENCE_DATA: ${{ github.event.schedule == '17 3 1 * *' }}
               run: |
                   set -euo pipefail
                   test -f data/processed/practices.geojson
@@ -51,13 +53,21 @@ jobs:
                   build_ok=0
                   backup_dir="$(mktemp -d)"
                   cp -R data/processed/. "${backup_dir}/"
+                  refresh_reference_data() {
+                    if [ "${REFRESH_REFERENCE_DATA}" = "true" ]; then
+                      NOMIS_POPULATION_GEOGRAPHY=TYPE150 python3 scripts/fetch_population.py \
+                        && python3 scripts/fetch_imd.py
+                    else
+                      cp -f data/seed/population.csv data/raw/population.csv \
+                        && cp -f data/seed/imd.csv data/raw/imd.csv
+                    fi
+                  }
                   for attempt in $(seq 1 "${MAX_ATTEMPTS}"); do
                     echo "NHS refresh attempt ${attempt}/${MAX_ATTEMPTS}"
                     if python3 scripts/fetch_practices.py \
                       && python3 -c 'import json; rows = json.load(open("data/raw/nhs_practices_normalized.json")); assert rows, "NHS API returned no normalized practices"' \
                       && python3 scripts/fetch_availability.py \
-                      && cp -f data/seed/population.csv data/raw/population.csv \
-                      && cp -f data/seed/imd.csv data/raw/imd.csv \
+                      && refresh_reference_data \
                       && python3 scripts/build_postcode_lookup_from_practices.py \
                       && python3 scripts/build_data.py; then
                       test -f data/processed/practices.geojson
