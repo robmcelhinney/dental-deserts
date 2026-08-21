@@ -68,6 +68,8 @@ jobs:
                       && python3 -c 'import json; rows = json.load(open("data/raw/nhs_practices_normalized.json")); assert rows, "NHS API returned no normalized practices"' \
                       && python3 scripts/fetch_availability.py \
                       && refresh_reference_data \
+                      && mkdir -p data/cache \
+                      && cp -f data/seed/postcode_lsoa.json data/cache/postcode_lsoa.json \
                       && python3 scripts/enrich_practices_lsoa.py \
                       && python3 scripts/build_data.py \
                       && python3 -c 'import json; metrics = json.load(open("data/processed/area_metrics.json")); assert any(row["practice_count"] for row in metrics.values()), "No practices were assigned to an area"'; then
