@@ -49,10 +49,10 @@ async function fetchProcessed(path) {
 }
 
 const map = L.map("map").setView(DEFAULT_MAP_CENTER, DEFAULT_MAP_ZOOM)
-L.tileLayer("https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png", {
+L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
     maxZoom: 18,
     attribution:
-        '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>',
+        '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
 }).addTo(map)
 
 const postcodeInput = document.getElementById("postcode")
